@@ -2,8 +2,13 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 from sidebar import sidebar
+from data_manager import load_data, update_field
+import pandas as pd
+
 
 sidebar("input_page")
+data = load_data()
+
 
 
 EARTH_RADIUS = 6371.0  # км
@@ -65,27 +70,25 @@ with tab_launch:
     st.header("Launch Parameters")
     col1, col2 = st.columns(2)
     with col1:
-        lat = st.number_input("Latitude (deg)", -90.0, 90.0, 0.0, format="%.2f")
-        lon = st.number_input("Longitude (deg)", -180.0, 180.0, 0.0, format="%.2f")
-        alt = st.number_input("Altitude (m)", 0.0, 10000.0, 0.0, step=10.0)
+        lat = st.number_input("Latitude (deg)", -90.0, 90.0, value=data["launch_lat"], on_change=lambda: update_field("launch_lat", lat), format="%.2f", key="launch_lat")
+        lon = st.number_input("Longitude (deg)", -180.0, 180.0, value=data["launch_lon"], on_change=lambda: update_field("launch_lon", lon), format="%.2f", key="launch_lon")
+        alt = st.number_input("Altitude (m)", 0.0, 10000.0, value=data["launch_alt"], step=10.0, on_change=lambda: update_field("launch_alt", alt), key="launch_alt")
     with col2:
-        launch_date = st.date_input("Launch Date")
-        launch_time = st.time_input("Launch Time")
+        ldate = st.date_input("Launch Date", value=pd.to_datetime(data["launch_date"]).date(), on_change=lambda: update_field("launch_date", ldate.strftime("%Y-%m-%d")), key="launch_date")
+        ltime = st.time_input("Launch Time", value=pd.to_datetime(data["launch_time"]).time(), on_change=lambda: update_field("launch_time", ltime.strftime("%H:%M:%S")), key="launch_time")
 
 with tab_orbit:
     st.header("Target Orbit Parameters (Keplerian Elements)")
     col1, col2, col3 = st.columns(3)
     with col1:
-        a = st.number_input("Semi-major axis (a) (km)", 0.0, value=7000.0, step=100.0)
-        e = st.number_input("Eccentricity (e)", 0.0, 1.0, value=0.0, step=0.01)
+        a = st.number_input("Semi-major axis (a) (km)", 0.0, value=data["orbit_a"], on_change=lambda: update_field("orbit_a", a), step=100.0, key="orbit_a")
+        e = st.number_input("Eccentricity (e)", 0.0, 1.0, value=data["orbit_e"], on_change=lambda: update_field("orbit_e", e), step=0.01, key="orbit_e")
     with col2:
-        i = st.number_input("Inclination (i) (deg)", 0.0, 360.0, value=0.0)
-        Ω = st.number_input("Right Ascension of Ascending Node (Ω) (deg)", 0.0, 360.0, value=0.0)
+        i = st.number_input("Inclination (i) (deg)", 0.0, 360.0, value=data["orbit_i"], on_change=lambda: update_field("orbit_i", i), key="orbit_i")
+        Ω = st.number_input("Right Ascension of Ascending Node (Ω) (deg)", 0.0, 360.0, value=data["orbit_Ω"], on_change=lambda: update_field("orbit_Ω", Ω), key="orbit_Ω")
     with col3:
-        ω = st.number_input("Argument of Periapsis (ω) (deg)", 0.0, 360.0, value=0.0)
-        ν = st.number_input("True Anomaly (ν) (deg)", 0.0, 360.0, value=0.0)
-
-
+        ω = st.number_input("Argument of Periapsis (ω) (deg)", 0.0, 360.0, value=data["orbit_ω"], on_change=lambda: update_field("orbit_ω", ω), key="orbit_ω")
+        ν = st.number_input("True Anomaly (ν) (deg)", 0.0, 360.0, value=data["orbit_ν"], on_change=lambda: update_field("orbit_ν", ν), key="orbit_ν")
 
     st.divider()
     st.header("Orbit Visualization")

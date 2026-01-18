@@ -1,10 +1,14 @@
 import streamlit as st
-import plotly.graph_objects as go
+from data_manager import load_data
 from sidebar import sidebar
 
+st.title("📈 Results")
 sidebar("results_page")
 
+# Читаем финальное состояние файла
+final_data = load_data()
 
-st.set_page_config(layout="wide")
-st.title("📈 Results")
+st.write("### Data from your current session file:")
+st.json(final_data)
 
+# Тут вызываешь свой алгоритм, передавая ему final_data
