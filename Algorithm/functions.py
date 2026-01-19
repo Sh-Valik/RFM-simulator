@@ -1,62 +1,92 @@
 import numpy as np
+from scipy.interpolate import interp1d
 
-def gravity(z):
-    r = np.sqrt(z**2)
+############################################################################
+temp_file = np.loadtxt('resources\temperature_profile_0_to_600km.txt')
+alt_ref = temp_file[:, 0]
+temp_ref = temp_file[:, 1]
+temp_interp = interp1d(alt_ref, temp_ref, kind = 'linear', fill_value='extrapolate')
+############################################################################
+
+############################################################################
+drag_file = np.loadtxt('resources\CD-Mach_relation.txt')
+Mach_ref = drag_file[:, 0]
+Cd_ref = drag_file[:, 1]
+drag_interp = interp1d(Mach_ref, Cd_ref, kind='linear')
+############################################################################
+
+############################################################################
+def temperature_by_altitude(Rplanet, x, y, z):
+    altitude = np.sqrt(x**2 + y**2 + z**2) - Rplanet
+    Local_Temperature = temp_interp(altitude)
+    
+    return Local_Temperature
+############################################################################
+
+
+############################################################################
+def gravity(Rplanet, Mplanet, G, x, y, z):
+    
+    r = np.sqrt(x**2 + y**2 + z**2)
 
     if r < Rplanet:
         accelx = 0.0
+        accely = 0.0
         accelz = 0.0
     else:
-        accelx = 0.0
-        accelz = g0 * ((Rplanet**2) / (r**2))
+        accelx = G * Mplanet / (r**3) * x
+        accely = G * Mplanet / (r**3) * y
+        accelz = G * Mplanet / (r**3) * z
     
-    return np.array([accelx, accelz]) 
+    return np.array([accelx, accely, accelz]) 
+############################################################################
 
-def propulsion():
-    if t < t_burn:
-        T = Psi * mass * g0
-        mdot = - T / Ve
-        if gravity_turn == 'YES':
-            if gt_velx < 1e-6:
-                theta_rad_gt = np.deg2rad(90) - np.deg2rad(0.629) # gamma0 - kick angle
-            else:
-                theta_rad_gt = np.arctan(gt_velz / gt_velx)
-            thrust_x = T * np.cos(theta_rad_gt)
-            thrust_z = T * np.sin(theta_rad_gt)
-        else:
-            thrust_x = T * np.cos(theta_rad_const)
-            thrust_z = T * np.sin(theta_rad_const)
-    else:
-        thrust_x = 0.0
-        thrust_z = 0.0
-        mdot = 0.0
-    return np.array([thrust_x, thrust_z]), mdot
 
-def Derivatives(state, t, theta_rad, t_burn, gravity_turn='YES'):
+############################################################################
+# def propulsion():
 
+############################################################################
+
+
+############################################################################
+def density(x, y, z, Rplanet):
+    """Air density on current altitude"""
+    rho0 = 1.225 # density of the air at sea level [kg/m^3]
+    Hm = 8500 # [m]
+    alt = np.sqrt(x**2 + y**2 + z**2) - Rplanet
+    rho = rho0 * np.exp(- alt / Hm)
+    return rho
+############################################################################
     
+
+############################################################################
+def Derivatives(Rplanet, Mplanet, G, state):
     # State vector
     x = state[0]
-    z = state[1]
-    velx = state[2]
-    velz = state[3]
-    mass = state[4]
+    y = state[1]
+    z = state[2]
+    velx = state[3]
+    vely = state[4]
+    velz = state[5]
+    mass = state[6]
 
-    # compute xdot and zdot
+    # compute xdot, ydot and zdot
     xdot = velx
+    ydot = vely
     zdot = velz
-
+    
     # Compute the forces
     
     # Gravity force
-    gravityF = - gravity(z) * mass
+    gravityF = - gravity(Rplanet, Mplanet, G, x, y, z) * mass
     
 
     # Aerodynamic force
+    rho_alt = density(x, y, z, Rplanet)
     aeroF = np.asarray([0.0, 0.0])
 
     # Thrust
-    thrustF, mdot = propulsion(t, theta_rad, t_burn, mass, z, velx, velz, gravity_turn=gravity_turn)
+    thrustF, mdot = propulsion()
 
 
     Forces = gravityF + aeroF + thrustF
@@ -72,3 +102,4 @@ def Derivatives(state, t, theta_rad, t_burn, gravity_turn='YES'):
 
     statedot = np.array([xdot, zdot, vdot[0], vdot[1], mdot])
     return statedot
+############################################################################
