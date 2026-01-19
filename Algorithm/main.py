@@ -5,8 +5,6 @@ from scipy.integrate import odeint
 
 
 
-
-
 def calculate_flight(data):
     m_payload = data["payload_mass"]
     stages_data = data["stages_data"]
@@ -28,3 +26,4 @@ def calculate_flight(data):
     t_o_ν = data["orbit_ν"]
 
 
+    
