@@ -1,19 +1,27 @@
 import numpy as np
 from scipy.interpolate import interp1d
+import os
 
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
 ############################################################################
-temp_file = np.loadtxt('resources\temperature_profile_0_to_600km.txt')
+temperature_file_path = os.path.join(project_root, 'resources', 'temperature_profile_0_to_600km.txt')
+temp_file = np.loadtxt(temperature_file_path)
 alt_ref = temp_file[:, 0]
 temp_ref = temp_file[:, 1]
 temp_interp = interp1d(alt_ref, temp_ref, kind = 'linear', fill_value='extrapolate')
 ############################################################################
 
+
 ############################################################################
-drag_file = np.loadtxt('resources\CD-Mach_relation.txt')
+cd_file_path = os.path.join(project_root, 'resources', 'CD-Mach_relation.txt')
+drag_file = np.loadtxt(cd_file_path)
 Mach_ref = drag_file[:, 0]
 Cd_ref = drag_file[:, 1]
 drag_interp = interp1d(Mach_ref, Cd_ref, kind='linear')
 ############################################################################
+
 
 ############################################################################
 def temperature_by_altitude(Rplanet, x, y, z):

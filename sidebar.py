@@ -10,6 +10,6 @@ def sidebar(page_type):
         st.sidebar.subheader("Visualization Settings")
         plot_option = st.sidebar.radio(
                 "Choose plot:",
-                ["3D Orbit", "Velocity Profile", "Altitude"]
+                ["3D Orbit", "Velocity vs Time", "Altitude vs Time", "Mass vs Time", "Density vs Altitude", "Temperature profile", "Drag coefficient vs Mach"] 
             )
         return plot_option

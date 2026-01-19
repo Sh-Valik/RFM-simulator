@@ -3,6 +3,10 @@ import numpy as np
 from scipy.integrate import odeint
 
 
+G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
+g0 = 9.80665  # standard gravitational acceleration [m/s^2]
+Rplanet = 6371000  # mean radius of the Earth [m]
+Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
 
 
 def calculate_flight(data):
