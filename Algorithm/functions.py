@@ -25,6 +25,7 @@ drag_interp = interp1d(Mach_ref, Cd_ref, kind='linear')
 
 ############################################################################
 def temperature_by_altitude(Rplanet, x, y, z):
+    """ Temperature computation on current altitude """
     altitude = np.sqrt(x**2 + y**2 + z**2) - Rplanet
     Local_Temperature = temp_interp(altitude)
     
@@ -33,7 +34,8 @@ def temperature_by_altitude(Rplanet, x, y, z):
 
 
 ############################################################################
-def gravity(Rplanet, Mplanet, G, x, y, z):
+def gravity(Rplanet, g0, x, y, z):
+    """ Gravitational acceleration computation """
     
     r = np.sqrt(x**2 + y**2 + z**2)
 
@@ -42,16 +44,30 @@ def gravity(Rplanet, Mplanet, G, x, y, z):
         accely = 0.0
         accelz = 0.0
     else:
-        accelx = G * Mplanet / (r**3) * x
-        accely = G * Mplanet / (r**3) * y
-        accelz = G * Mplanet / (r**3) * z
+        accelx = g0 * ((Rplanet**2) / (r**3)) * x
+        accely = g0 * ((Rplanet**2) / (r**3)) * y
+        accelz = g0 * ((Rplanet**2) / (r**3)) * z
     
-    return np.array([accelx, accely, accelz]) 
+    return np.array([accelx, accely, accelz])
 ############################################################################
 
 
 ############################################################################
-# def propulsion():
+def propulsion(t, t_burn, T_mag, m_flow, theta):
+    """ Thrust and mass flow rate computation """
+    if t <= t_burn:
+        thrust_x = T_mag * np.cos(theta)
+        thrust_y = 0.0 # placeholder
+        thrust_z = T_mag * np.sin(theta)
+        mdot = - m_flow  # mass flow rate [kg/s]
+    else:
+        thrust_x = 0.0
+        thrust_y = 0.0
+        thrust_z = 0.0
+        mdot = 0.0
+
+    return np.array([thrust_x, thrust_y, thrust_z]), mdot
+
 
 ############################################################################
 
@@ -65,10 +81,11 @@ def density(x, y, z, Rplanet):
     rho = rho0 * np.exp(- alt / Hm)
     return rho
 ############################################################################
-    
+
 
 ############################################################################
-def Derivatives(Rplanet, Mplanet, G, state):
+def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
+    """ Computes the state derivatives """
     # State vector
     x = state[0]
     y = state[1]
@@ -86,15 +103,20 @@ def Derivatives(Rplanet, Mplanet, G, state):
     # Compute the forces
     
     # Gravity force
-    gravityF = - gravity(Rplanet, Mplanet, G, x, y, z) * mass
+    gravityF = - gravity(Rplanet, g0, x, y, z) * mass
     
 
     # Aerodynamic force
+    V = np.sqrt(velx**2 + vely**2 + velz**2)
     rho_alt = density(x, y, z, Rplanet)
-    aeroF = np.asarray([0.0, 0.0])
+    Temp_local = temperature_by_altitude(Rplanet, x, y, z)
+    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s]
+    Mach = V / loc_sound_speed
+    Cd = drag_interp(Mach)
+    aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
 
     # Thrust
-    thrustF, mdot = propulsion()
+    thrustF, mdot = propulsion(t, t_burn, T_mag, m_flow, theta)
 
 
     Forces = gravityF + aeroF + thrustF
@@ -108,6 +130,13 @@ def Derivatives(Rplanet, Mplanet, G, state):
         mdot = 0.0
     
 
-    statedot = np.array([xdot, zdot, vdot[0], vdot[1], mdot])
+    statedot = np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
     return statedot
+############################################################################
+
+
+############################################################################
+def mass_of_stages_eps_mode(data_list):
+    #placeholder for future implementation
+    pass
 ############################################################################

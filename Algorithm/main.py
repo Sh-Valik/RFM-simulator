@@ -1,4 +1,4 @@
-from functions import derivatives
+from functions import derivatives, mass_of_stages_eps_mode
 import numpy as np
 from scipy.integrate import odeint
 
@@ -11,10 +11,22 @@ Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
 
 def calculate_flight(data):
     m_payload = data["payload_mass"]
-    stages_data = data["stages_data"]
+    theta_angle_deg = data["theta_angle"]
+    theta_angle = np.radians(theta_angle_deg)
+    stages_count = data["stages_count"]
     has_boosters = data["has_boosters"]
+    booster_count = data["booster_count"]
+    input_mode = data["input_mode"]
+    if input_mode == "Start mass & Propellant":
+        stages_data = data["stages_data_mass"]
+    else:
+        stages_data = mass_of_stages_eps_mode(data["stages_data_eps"]) # Placeholder for future implementation
     if has_boosters:
         boosters_data = data["boosters_data"]
+        if input_mode == "Start mass & Propellant":
+            boosters_data = data["boosters_data_mass"]
+        else:
+            boosters_data = mass_of_stages_eps_mode(data["boosters_data_eps"]) # Placeholder for future implementation
     
     launch_lat = data["launch_lat"]
     launch_lon = data["launch_lon"]

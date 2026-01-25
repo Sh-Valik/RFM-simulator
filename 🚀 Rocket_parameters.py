@@ -8,24 +8,38 @@ sidebar("input_page")
 
 data = load_data()
 
-def counter_sync(session_state_of_count, count_data):
-    """Синхронизирует количество строк в таблице с числом степеней или бустеров"""
-    new_count = st.session_state[session_state_of_count]
+def counter_sync(count_key, category):
+    """
+    count_key: ключ session_state с числом (например, "stages_count")
+    category: префикс данных ("stages" или "boosters")
+    """
+    new_count = st.session_state[count_key]
     current_data = load_data()
-    current_list = current_data.get(count_data, [])
+
+    # Определяем текущий список данных
+    mode = current_data.get("input_mode", "EPS & lambda")
+
+    if mode == "Start mass & Propellant":
+        data_key = f"{category}_data_mass"
+        new_row = {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 300.0}
+    else:
+        data_key = f"{category}_data_eps"
+        new_row = {"EPS": 0.08, "lambda": 0.03, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 300.0}
+    
+
+    current_list = current_data.get(data_key, [])
 
     if len(current_list) < new_count:
-        # Добавляем пустые строки
+        # Добавляем новые строки
         for _ in range(new_count - len(current_list)):
-            current_list.append({"Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 300.0, "Structural Mass (kg)": 100.0})
+            current_list.append(new_row.copy())
     elif len(current_list) > new_count:
         # Удаляем лишние строки
         current_list = current_list[:new_count]
 
-    current_data[session_state_of_count] = new_count
-    current_data[count_data] = current_list
-    update_field(session_state_of_count, new_count)
-    update_field(count_data, current_list)
+    # Сохраняем обновленные данные
+    update_field(data_key, current_list)
+    update_field(count_key, new_count)
     
 
 ######################
@@ -38,13 +52,19 @@ with col1:
     st.checkbox("Has Boosters", value=data["has_boosters"], key="has_boosters", on_change=lambda: update_field("has_boosters", st.session_state.has_boosters))
 
 with col2:
-    st.number_input("Stages Count", min_value=1, max_value=10, value=data["stages_count"], step=1, key="stages_count", on_change=lambda: counter_sync("stages_count", "stages_data"))
-with col3:
+    st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle))
     if data["has_boosters"]:
-        st.number_input("Booster Count", min_value=1, max_value=10, value=data["booster_count"], step=1, key="booster_count", on_change=lambda: counter_sync("booster_count", "boosters_data"))
+        st.number_input("Number of rocket boosters", min_value=1, max_value=10, value=data["booster_count"], step=1, key="booster_count", on_change=lambda: counter_sync("booster_count", "boosters"))
+with col3:
+    st.number_input("Number of rocket stages", min_value=1, max_value=10, value=data["stages_count"], step=1, key="stages_count", on_change=lambda: counter_sync("stages_count", "stages"))
+    st.radio("Rocket parameters input mode", options=["EPS & lambda", "Start mass & Propellant"], key="input_mode", on_change=lambda: update_field("input_mode", st.session_state.input_mode))
 
 st.divider()
 st.header("Stages Details")
+if data["input_mode"] == "Start mass & Propellant":
+    data["stages_data"] = data.get("stages_data_mass", [])
+else:
+    data["stages_data"] = data.get("stages_data_eps", [])
 df_stages = pd.DataFrame(data["stages_data"])
 df_stages.index += 1  # Начинаем нумерацию с 1
 df_stages.index.name = "Stage"
@@ -57,6 +77,10 @@ if st.session_state.ed_stages:
 if data["has_boosters"]:
     st.divider()
     st.header("Boosters Details")
+    if data["input_mode"] == "Start mass & Propellant":
+        data["boosters_data"] = data.get("boosters_data_mass", [])
+    else:
+        data["boosters_data"] = data.get("boosters_data_eps", [])
     df_boosters = pd.DataFrame(data["boosters_data"])
     df_boosters.index += 1  # Начинаем нумерацию с 1
     df_boosters.index.name = "Booster"
