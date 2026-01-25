@@ -1,4 +1,4 @@
-from functions import derivatives, mass_of_stages_eps_mode
+from functions import derivatives, parameters_of_stages
 import numpy as np
 from scipy.integrate import odeint
 
@@ -15,18 +15,25 @@ def calculate_flight(data):
     theta_angle = np.radians(theta_angle_deg)
     stages_count = data["stages_count"]
     has_boosters = data["has_boosters"]
-    booster_count = data["booster_count"]
-    input_mode = data["input_mode"]
-    if input_mode == "Start mass & Propellant":
-        stages_data = data["stages_data_mass"]
-    else:
-        stages_data = mass_of_stages_eps_mode(data["stages_data_eps"]) # Placeholder for future implementation
     if has_boosters:
-        boosters_data = data["boosters_data"]
-        if input_mode == "Start mass & Propellant":
-            boosters_data = data["boosters_data_mass"]
-        else:
-            boosters_data = mass_of_stages_eps_mode(data["boosters_data_eps"]) # Placeholder for future implementation
+        booster_count = data["booster_count"]
+    payload_mass_ratio_total = data["payload_mass_ratio_total"]
+    input_mode = data["input_mode"]
+    rocket_type = data["rocket_type"]
+    if input_mode == "Start mass & Propellant":
+        stage_data_list = data["stages_data_mass"]
+        Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
+        if has_boosters:
+            booster_data_list = data["boosters_data_mass"]
+            Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
+    else:
+        stage_data_list = data["stages_data_eps"]
+        Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
+        if has_boosters:
+            booster_data_list = data["boosters_data_eps"]
+            Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
+
+    
     
     launch_lat = data["launch_lat"]
     launch_lon = data["launch_lon"]

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.optimize import brentq
 import os
 
 
@@ -136,7 +137,128 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
 
 
 ############################################################################
-def mass_of_stages_eps_mode(data_list):
-    #placeholder for future implementation
-    pass
+def parameters_of_stages(input_mode, data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count):
+    """Return Ve, mass_flow, m0, m_prop, Vf_id, Lambda for each stage depending on input mode and rocket type"""
+    
+    if input_mode == "Start mass & Propellant":
+        m0 = [stage["Start Mass (kg)"] for stage in data_list]
+        m_prop = [stage["Propellant (kg)"] for stage in data_list]
+        Ve = [stage["Ve (m/s)"] for stage in data_list]
+        mass_flow = [stage["Mass flow (kg/s)"] for stage in data_list]
+
+        Lambda = [m0[i] / (m0[i] - m_prop[i]) for i in range(len(m0))]
+        Vf_id = [Ve[i] * np.log(Lambda[i]) for i in range(len(m0))]
+        
+
+    else:
+        eps = [stage["EPS"] for stage in data_list]
+        mass_flow = [stage["Mass_flow (kg/s)"] for stage in data_list]
+        Ve = [stage["Ve (m/s)"] for stage in data_list]
+
+        if rocket_type == "Optimal":
+            m0, m_prop, Vf_id, Lambda = optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count)
+        else:
+            m0, m_prop, Vf_id, Lambda = non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count)
+
+    
+    return Ve, mass_flow, m0, m_prop, Vf_id, Lambda
+############################################################################
+    
+    
+    
+
+############################################################################
+def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count):
+    """Calculate parameters for an optimal rocket configuration."""
+    mu = calculate_optimal_mu(payload_mass_ratio_total, eps, Ve)
+
+    lambda_optimal = [None] * stages_count
+    for i in range(stages_count):
+        lambda_optimal[i] = (mu * eps[i]) / ((Ve[i] - mu) * (1 - eps[i]))
+    
+    phi = [None] * stages_count
+    for i in range(stages_count):
+        phi[i] = (1 - eps[i]) * (1 - lambda_optimal[i])
+   
+    Lambda = [None] * stages_count
+    for i in range(stages_count):
+        Lambda[i] = 1 / (1 - phi[i])
+    
+    Vf_id = [None] * stages_count
+    for i in range(stages_count):
+        Vf_id[i] = Ve[i] * np.log(Lambda[i])
+
+    m0 = [None] * stages_count
+    m_prop = [None] * stages_count
+    for i in range(stages_count - 1, -1, -1):
+        if i == stages_count - 1: # last section
+            m0[i] = m_payload / lambda_optimal[i] # last section mass
+            m_prop[i] = m0[i] * phi[i]
+        else:
+            m0[i] = m0[i+1] / lambda_optimal[i]
+            m_prop[i] = m0[i] * phi[i]
+    
+    return m0, m_prop, Vf_id, Lambda
+        
+    
+
+
+############################################################################
+def non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count):
+    lambda_of_non_optimal_rocket = payload_mass_ratio_total**(1 / stages_count)
+    
+    phi = [None] * stages_count
+    for i in range(stages_count):
+        phi[i] = (1 - eps[i]) * (1 - lambda_of_non_optimal_rocket)
+   
+    Lambda = [None] * stages_count
+    for i in range(stages_count):
+        Lambda[i] = 1 / (1 - phi[i])
+    
+    Vf_id = [None] * stages_count
+    for i in range(stages_count):
+        Vf_id[i] = Ve[i] * np.log(Lambda[i])
+
+    m0 = [None] * stages_count
+    m_prop = [None] * stages_count
+
+    for i in range(stages_count - 1, -1, -1):
+        if i == stages_count - 1: # last section
+            m0[i] = m_payload / lambda_of_non_optimal_rocket # last section mass
+            m_prop[i] = m0[i] * phi[-1]
+        else:
+            m0[i] = m0[i+1] / lambda_of_non_optimal_rocket
+            m_prop[i] = m0[i] * phi[i]
+    
+    return m0, m_prop, Vf_id, Lambda
+############################################################################
+
+
+
+############################################################################
+
+def calculate_optimal_mu(lambda_total, eps_list, Ve_list):
+    """Calculate the optimal mu for given lambda_total, eps_list, and Ve_list."""
+    
+    if len(eps_list) != len(Ve_list):
+        raise ValueError("EPS and Ve must have the same length.")
+    
+    min_Ve = min(Ve_list)
+
+    target_log = np.log(lambda_total)
+    
+    
+    def equation(mu):
+        current_log_sum = 0
+        
+        for eps, Ve in zip(eps_list, Ve_list):
+            term = np.log(mu) + np.log(eps) - np.log(Ve - mu) - np.log(1 - eps)
+            current_log_sum += term
+        return current_log_sum - target_log
+    
+    try:
+        mu_optimal = brentq(equation, 1e-9, min_Ve - 1e-5)
+        return mu_optimal
+    except ValueError:
+        raise ValueError("No solution found for the given parameters.")
 ############################################################################

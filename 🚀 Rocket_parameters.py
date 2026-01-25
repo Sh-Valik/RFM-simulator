@@ -51,41 +51,67 @@ with col1:
     st.number_input("Payload Mass (kg)", min_value=0.0, value=data["payload_mass"], step=100.0, key="payload_mass", on_change=lambda: update_field("payload_mass", st.session_state.payload_mass))
     st.checkbox("Has Boosters", value=data["has_boosters"], key="has_boosters", on_change=lambda: update_field("has_boosters", st.session_state.has_boosters))
 
+
+
+    input_mode = ["EPS & lambda", "Start mass & Propellant"]
+    current_mode_value = data.get("input_mode", "EPS & lambda")
+    try:
+        mode_index = input_mode.index(current_mode_value)
+    except ValueError:
+        mode_index = 0
+
+    st.radio("Rocket parameters input mode", options=input_mode, index=mode_index, key="input_mode", on_change=lambda: update_field("input_mode", st.session_state.input_mode))
+
+
 with col2:
     st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle))
     if data["has_boosters"]:
         st.number_input("Number of rocket boosters", min_value=1, max_value=10, value=data["booster_count"], step=1, key="booster_count", on_change=lambda: counter_sync("booster_count", "boosters"))
+
+    if st.session_state.input_mode == "EPS & lambda":
+        r_types = ["Optimal", "Non-optimal"]
+        r_idx = r_types.index(data.get("rocket_type", "Optimal")) if data.get("rocket_type", "Optimal") in r_types else 0
+        st.radio("Type of a Rocket", options=r_types, index=r_idx, key="rocket_type", on_change=lambda: update_field("rocket_type", st.session_state.rocket_type))
+
+        
 with col3:
     st.number_input("Number of rocket stages", min_value=1, max_value=10, value=data["stages_count"], step=1, key="stages_count", on_change=lambda: counter_sync("stages_count", "stages"))
-    st.radio("Rocket parameters input mode", options=["EPS & lambda", "Start mass & Propellant"], key="input_mode", on_change=lambda: update_field("input_mode", st.session_state.input_mode))
+    
+
+    if st.session_state.input_mode == "EPS & lambda":
+        st.number_input("Total payload mass ratio", min_value=0.0, max_value=1.0, value=data["payload_mass_ratio_total"], step=0.01, key="payload_mass_ratio", on_change=lambda: update_field("payload_mass_ratio", st.session_state.payload_mass_ratio))
+
 
 st.divider()
 st.header("Stages Details")
-if data["input_mode"] == "Start mass & Propellant":
-    data["stages_data"] = data.get("stages_data_mass", [])
-else:
-    data["stages_data"] = data.get("stages_data_eps", [])
-df_stages = pd.DataFrame(data["stages_data"])
+
+
+current_mode = data.get("input_mode", "EPS & lambda")
+key_suffix = "mass" if current_mode == "Start mass & Propellant" else "eps"
+
+stage_real_key = f"stages_data_{key_suffix}"
+df_stages = pd.DataFrame(data.get(stage_real_key, []))
 df_stages.index += 1  # Начинаем нумерацию с 1
 df_stages.index.name = "Stage"
+
 edited_stages = st.data_editor(df_stages, use_container_width=True, key="ed_stages")
 
 # Сохраняем таблицу, если она изменилась
 if st.session_state.ed_stages:
-    update_field("stages_data", edited_stages.to_dict('records'))
+    update_field(stage_real_key, edited_stages.to_dict('records'))
 
 if data["has_boosters"]:
     st.divider()
     st.header("Boosters Details")
-    if data["input_mode"] == "Start mass & Propellant":
-        data["boosters_data"] = data.get("boosters_data_mass", [])
-    else:
-        data["boosters_data"] = data.get("boosters_data_eps", [])
-    df_boosters = pd.DataFrame(data["boosters_data"])
+
+    boosters_real_key = f"boosters_data_{key_suffix}"
+
+    df_boosters = pd.DataFrame(data.get(boosters_real_key, []))
     df_boosters.index += 1  # Начинаем нумерацию с 1
     df_boosters.index.name = "Booster"
+    
     edited_boosters = st.data_editor(df_boosters, use_container_width=True, key="ed_boosters")
 
     # Сохраняем таблицу, если она изменилась
     if st.session_state.ed_boosters:
-        update_field("boosters_data", edited_boosters.to_dict('records'))
+        update_field(boosters_real_key, edited_boosters.to_dict('records'))
