@@ -10,13 +10,13 @@ data = load_data()
 
 def counter_sync(count_key, category):
     """
-    count_key: ключ session_state с числом (например, "stages_count")
-    category: префикс данных ("stages" или "boosters")
+    count_key: key session_state with number (example, "stages_count")
+    category: prefix ("stages" or "boosters")
     """
     new_count = st.session_state[count_key]
     current_data = load_data()
 
-    # Определяем текущий список данных
+    # Determine current input mode
     mode = current_data.get("input_mode", "EPS & lambda")
 
     if mode == "Start mass & Propellant":
@@ -30,14 +30,14 @@ def counter_sync(count_key, category):
     current_list = current_data.get(data_key, [])
 
     if len(current_list) < new_count:
-        # Добавляем новые строки
+        # Add new rows
         for _ in range(new_count - len(current_list)):
             current_list.append(new_row.copy())
     elif len(current_list) > new_count:
-        # Удаляем лишние строки
+        # Delete extra rows
         current_list = current_list[:new_count]
 
-    # Сохраняем обновленные данные
+    # Save updated list back to data
     update_field(data_key, current_list)
     update_field(count_key, new_count)
     
@@ -91,12 +91,12 @@ key_suffix = "mass" if current_mode == "Start mass & Propellant" else "eps"
 
 stage_real_key = f"stages_data_{key_suffix}"
 df_stages = pd.DataFrame(data.get(stage_real_key, []))
-df_stages.index += 1  # Начинаем нумерацию с 1
+df_stages.index += 1  # Start index from 1
 df_stages.index.name = "Stage"
 
 edited_stages = st.data_editor(df_stages, use_container_width=True, key="ed_stages")
 
-# Сохраняем таблицу, если она изменилась
+# Save the table if it has changed
 if st.session_state.ed_stages:
     update_field(stage_real_key, edited_stages.to_dict('records'))
 
@@ -107,11 +107,11 @@ if data["has_boosters"]:
     boosters_real_key = f"boosters_data_{key_suffix}"
 
     df_boosters = pd.DataFrame(data.get(boosters_real_key, []))
-    df_boosters.index += 1  # Начинаем нумерацию с 1
+    df_boosters.index += 1  # Start index from 1
     df_boosters.index.name = "Booster"
     
     edited_boosters = st.data_editor(df_boosters, use_container_width=True, key="ed_boosters")
 
-    # Сохраняем таблицу, если она изменилась
+    # Save the table if it has changed
     if st.session_state.ed_boosters:
         update_field(boosters_real_key, edited_boosters.to_dict('records'))

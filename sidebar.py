@@ -1,6 +1,7 @@
 import streamlit as st
 
 def sidebar(page_type):
+    """Return selected options from the sidebar based on page type."""
 
     if page_type == "input_page":
         st.sidebar.subheader("Calculation")

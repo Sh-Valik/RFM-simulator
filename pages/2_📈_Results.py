@@ -51,32 +51,27 @@ selected_plot = sidebar("results_page")
 
 
 def plot_3d_orbit(data):
-    """Функция для построения 3D орбиты ракеты"""
-    st.write("Plotting 3D Orbit...")
-    # Тут код для построения 3D орбиты
+    """Function to plot 3D Orbit"""
+    pass # placeholder for 3D orbit plotting code
 
 def plot_velocity_vs_time(data):
-    """Функция для построения графика скорости от времени"""
-    st.write("Plotting Velocity vs Time...")
-    # Тут код для построения графика скорости
+    """Function to plot velocity vs time"""
+    pass # placeholder for velocity vs time plotting code
 
 def plot_altitude_vs_time(data):
-    """Функция для построения графика высоты от времени"""
-    st.write("Plotting Altitude vs Time...")
-    # Тут код для построения графика высоты
+    """Function to plot altitude vs time"""
+    pass # placeholder for altitude vs time plotting code
 
 def plot_mass_vs_time(data):
-    """Функция для построения графика массы от времени"""
-    st.write("Plotting Mass vs Time...")
-    # Тут код для построения графика массы
+    """Function to plot mass vs time"""
+    pass # placeholder for mass vs time plotting code
 
 def plot_density_vs_altitude(data):
-    """Функция для построения графика плотности от высоты"""
-    st.write("Plotting Density vs Altitude...")
-    # Тут код для построения графика плотности
+    """Function to plot density vs altitude"""
+    pass # placeholder for density vs altitude plotting code
 
 def plot_temperature_profile():
-    """Функция для построения температурного профиля"""
+    """Function to plot temperature profile"""
     st.write("Plotting Temperature Profile...")
     fig = px.line(
         temp_data, 
@@ -88,7 +83,7 @@ def plot_temperature_profile():
     
 
 def plot_drag_coefficient_vs_mach():
-    """Функция для построения графика коэффициента сопротивления от числа Маха"""
+    """Function to plot drag coefficient vs Mach"""
     st.write("Plotting Drag Coefficient vs Mach")
     fig = px.line(
         cd_data,
@@ -106,10 +101,10 @@ elif selected_plot == "Velocity vs Time":
     tab_velocity_m_s, tab_velocity_mach = st.tabs(["Velocity (m/s)", "Velocity (Mach)"])
     with tab_velocity_m_s:
         st.header("Velocity vs Time (m/s)")
-        # Тут код для построения графика скорости в м/с
+        # Code for plotting velocity vs time in m/s
     with tab_velocity_mach:
         st.header("Velocity vs Time (Mach)")
-        # Тут код для построения графика скорости в числах Маха
+        # Code for plotting velocity vs time in Mach numbers
     # plot_velocity_vs_time(results_data)
 elif selected_plot == "Altitude vs Time":
     pass
