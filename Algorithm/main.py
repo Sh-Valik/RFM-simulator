@@ -1,52 +1,61 @@
 from functions import derivatives, parameters_of_stages
 import numpy as np
 from scipy.integrate import odeint
-
+import json
+import os
+from data_manager import load_data
 
 G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
 g0 = 9.80665  # standard gravitational acceleration [m/s^2]
 Rplanet = 6371000  # mean radius of the Earth [m]
 Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
 
+data = load_data()
 
-def calculate_flight(data):
-    m_payload = data["payload_mass"]
-    theta_angle_deg = data["theta_angle"]
-    theta_angle = np.radians(theta_angle_deg)
-    stages_count = data["stages_count"]
-    has_boosters = data["has_boosters"]
+############################################################################
+# Rocket and mission parameters
+
+m_payload = data["payload_mass"]
+theta_angle_deg = data["theta_angle"]
+theta_angle = np.radians(theta_angle_deg)
+
+stages_count = data["stages_count"]
+has_boosters = data["has_boosters"]
+if has_boosters:
+    booster_count = data["booster_count"]
+
+payload_mass_ratio_total = data["payload_mass_ratio_total"]
+input_mode = data["input_mode"]
+rocket_type = data["rocket_type"]
+
+if input_mode == "Start mass & Propellant":
+    stage_data_list = data["stages_data_mass"]
+    Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
     if has_boosters:
-        booster_count = data["booster_count"]
-    payload_mass_ratio_total = data["payload_mass_ratio_total"]
-    input_mode = data["input_mode"]
-    rocket_type = data["rocket_type"]
-    if input_mode == "Start mass & Propellant":
-        stage_data_list = data["stages_data_mass"]
-        Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
-        if has_boosters:
-            booster_data_list = data["boosters_data_mass"]
-            Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
-    else:
-        stage_data_list = data["stages_data_eps"]
-        Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
-        if has_boosters:
-            booster_data_list = data["boosters_data_eps"]
-            Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
+        booster_data_list = data["boosters_data_mass"]
+        Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
 
-    
-    
-    launch_lat = data["launch_lat"]
-    launch_lon = data["launch_lon"]
-    launch_alt = data["launch_alt"]
-    launch_date = data["launch_date"]
-    launch_time = data["launch_time"]
-
-    t_o_a = data["orbit_a"]
-    t_o_e = data["orbit_e"]
-    t_o_i = data["orbit_i"]
-    t_o_Ω = data["orbit_Ω"]
-    t_o_ω = data["orbit_ω"]
-    t_o_ν = data["orbit_ν"]
+else:
+    stage_data_list = data["stages_data_eps"]
+    Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
+    if has_boosters:
+        booster_data_list = data["boosters_data_eps"]
+        Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
 
 
-    
+
+launch_lat = data["launch_lat"]
+launch_lon = data["launch_lon"]
+launch_alt = data["launch_alt"]
+launch_date = data["launch_date"]
+launch_time = data["launch_time"]
+
+t_o_a = data["orbit_a"]
+t_o_e = data["orbit_e"]
+t_o_i = data["orbit_i"]
+t_o_Ω = data["orbit_Ω"]
+t_o_ω = data["orbit_ω"]
+t_o_ν = data["orbit_ν"]
+
+
+############################################################################
