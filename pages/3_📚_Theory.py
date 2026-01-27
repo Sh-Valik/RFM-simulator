@@ -57,9 +57,21 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Optimal Rocket", "Non-optimal Roc
 
 with tab1:
     st.subheader('Optimal Rocket')
+    st.write("""
+    When user select "Optimal" type of a rocket, the algorithm will calculate the optimal rocket parameters based on the user-defined total payload mass ratio and construction mass ratio.
+    As we know
+    $$
+    \lambda_{total} = \lambda_1 \cdot \lambda_2 \cdot \lambda_3 \cdots \lambda_N
+    $$
+    where $\lambda_{total}$ is the total payload mass ratio, $\lambda_1, \lambda_2, \lambda_3, \cdots, \lambda_N$ are the payload mass ratios of each stage.
+    """)
+    
 
 with tab2:
     st.subheader("Non-optimal Rocket")
+    st.write("""
+    
+    """)
 
 with tab3:
     st.subheader('Aeorodynamic Force')
@@ -74,7 +86,7 @@ with tab6:
     st.subheader('Derivatives')
 
 
-
+st.header("3. Simulation")
 
 
 
