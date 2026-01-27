@@ -50,9 +50,28 @@ with col3:
 
 st.header("2. Preprocessing")
 st.write("""
-         
+         Before proceeding with the simulation based on user-defined parameters, it is essential to establish the mathematical and physical foundations and core functions that drive the algorithm.
          """)
 
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Optimal Rocket", "Non-optimal Rocket", "Aeorodynamic Force", "Gravity Force", "Propulsion", "Derivatives"])
+
+with tab1:
+    st.subheader('Optimal Rocket')
+
+with tab2:
+    st.subheader("Non-optimal Rocket")
+
+with tab3:
+    st.subheader('Aeorodynamic Force')
+
+with tab4:
+    st.subheader('Gravity Force')
+
+with tab5:
+    st.subheader('Propulsion')
+
+with tab6:
+    st.subheader('Derivatives')
 
 
 
