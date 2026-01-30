@@ -13,36 +13,34 @@ if not os.path.exists(SESSION_DIR):
 
 # Default data structure
 DEFAULT_DATA = {
-    "payload_mass": 1000.0,
+    "payload_mass_without_booster": 2880.0, # Stoil
+    "payload_mass_with_booster": 3880.0, # Stoil
     "theta_angle": 80.0,
-    "stages_count": 2,
+    "stages_count": 2, # Stoil
     "has_boosters": True,
-    "booster_count": 4,
+    "booster_count": 2,
+    "t_burn_ratio": 0.71,
     "payload_mass_ratio_total": 0.03,
     "input_mode": "EPS & lambda",
     "rocket_type": "Optimal",
     "stages_data_mass": [
-        {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 300.0},
-        {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 300.0}
+        {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 3400.0},
+        {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 3900.0}
     ],
     "boosters_data_mass": [
-        {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 322.22},
-        {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 322.22},
-        {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 322.22},
-        {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 322.22}
+        {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 2900.00},
+        {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 2900.00}
     ],
     "stages_data_eps": [
-        {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 300.0},
-        {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 300.0}
+        {"EPS": 0.11, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 3400.0}, # EPS and Ve - Stoil
+        {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 3900.0} # EPS and Ve - Stoil
     ],
     "boosters_data_eps": [
-        {"EPS": 0.07, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 322.22},
-        {"EPS": 0.07, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 322.22},
-        {"EPS": 0.07, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 322.22},
-        {"EPS": 0.07, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 322.22}
+        {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00}, # EPS and Ve - Stoil
+        {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00} # EPS and Ve - Stoil
     ],
     "launch_lat": 0.0, "launch_lon": 0.0, "launch_alt": 0.0,
-    "launch_date": "2025-02-10", "launch_time": "00:00:00",
+    "launch_date": "2026-02-10", "launch_time": "07:15:00", # Stoil. Time UTC
     "orbit_a": 7000.0, "orbit_e": 0.0, "orbit_i": 0.0, "orbit_Ω": 0.0, "orbit_ω": 0.0, "orbit_ν": 0.0
 }
 
