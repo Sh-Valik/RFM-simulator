@@ -10,7 +10,6 @@ from Algorithm.functions import plot_3d_orbit, plot_velocity_vs_time, plot_altit
 st.title("📈 Results")
 selected_plot = sidebar("results_page")
 
-
 ##############################################################
 if selected_plot == "3D Orbit":
     # plot_3d_orbit(results_data)

@@ -147,7 +147,7 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
 
 
 ############################################################################
-def parameters_of_stages(input_mode, data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count):
+def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count):
     """Return Ve, mass_flow, m0, m_prop, Vf_id, Lambda for each stage depending on input mode and rocket type"""
     
     if input_mode == "Start mass & Propellant":
@@ -166,19 +166,79 @@ def parameters_of_stages(input_mode, data_list, m_payload, payload_mass_ratio_to
         Ve = [stage["Ve (m/s)"] for stage in data_list]
 
         if rocket_type == "Optimal":
-            m0, m_prop, Vf_id, Lambda = optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count)
+            m0, m_prop, Vf_id, Lambda = optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count)
         else:
-            m0, m_prop, Vf_id, Lambda = non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count)
+            m0, m_prop, Vf_id, Lambda = non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count)
 
     
     return Ve, mass_flow, m0, m_prop, Vf_id, Lambda
 ############################################################################
-    
-    
-    
+
 
 ############################################################################
-def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count):
+def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_payload_with_boosters, Vf_id_stages, m0_stages, m_prop_stages, stage_count, booster_count, Ve_stages, t_burn_ratio):
+    if input_mode == "Start mass & Propellant":
+        # placeholder
+        pass       
+
+    else:
+        eps = [booster["EPS"] for booster in data_list]
+        mass_flow_boosters = [booster["Mass_flow (kg/s)"] for booster in data_list]
+        Ve_boosters = [booster["Ve (m/s)"] for booster in data_list]
+
+        delta_m_payload = m_payload_with_boosters - m_payload_without_boosters
+
+        new_m0_stages = [m0_stages[i] + delta_m_payload for i in range(stage_count -1, 0, -1)]
+        phi_with_boosters = [None] * (stage_count - 1)
+        Lambda_with_boosters = [None] * (stage_count - 1)
+        for i in range(stage_count -1, 0, -1):
+            phi_with_boosters[i] = m_prop_stages[i] / new_m0_stages[i]
+            Lambda_with_boosters[i] = 1 / (1 - phi_with_boosters[i])
+
+        Vf_id_with_boosters = [Ve_stages[i] * np.log(Lambda_with_boosters[i]) for i in range(stage_count - 1)]
+
+        Vf_id_first_stage_with_boosters = sum(Vf_id_stages) - sum(Vf_id_with_boosters)
+
+        phi_first_stage_with_boosters = m_prop_stages[0] / (m0_stages[0] + delta_m_payload)
+
+        Lambda_double_prim = (1 - phi_first_stage_with_boosters * t_burn_ratio) / (1 - phi_first_stage_with_boosters)
+        deltaV_double_prim = Ve_stages[0] * np.log(Lambda_double_prim)
+        deltaV_prim = Vf_id_first_stage_with_boosters - deltaV_double_prim
+        
+        Lambda_prim = [np.exp(deltaV_prim / Ve_boosters[i]) for i in range(booster_count)]
+        mps_over_mp1 = [mps_over_mp1(Lambda_prim[i], phi_first_stage_with_boosters, eps[i], t_burn_ratio) for i in range(booster_count)]
+        m_prop_boosters = [mps_over_mp1[i] * m0_stages[0] for i in range(booster_count)]
+
+        m_construction_boosters = [(eps[i] * m_prop_boosters[i]) / (1 - eps[i]) for i in range(booster_count)]
+        m0_boosters = [m_prop_boosters[i] + m_construction_boosters[i] for i in range(booster_count)]
+
+
+        new_m0_stages = np.insert(new_m0_stages, 0, m0_stages[0] + delta_m_payload + sum(m0_boosters))
+
+        return Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, m_construction_boosters, Lambda_with_boosters, new_m0_stages
+
+
+############################################################################
+def mps_over_mp1(Lambda, phi, eps, tbs_over_tb1):
+    A = (1 - 1 / Lambda_) * phi / (1 - epsilon)
+    B = (1 - 1 / Lambda_) - phi * tbs_over_tb1
+    C = -phi
+
+    D = B**2 - 4 * A * C
+    x1 = (-B + math.sqrt(D)) / (2 * A)
+    x2 = (-B - math.sqrt(D)) / (2 * A)
+
+    if x1 > 0 and x2 > 0:
+        return min(x1, x2)
+    elif x1 > 0:
+        return x1
+    elif x2 > 0:
+        return x2
+    else:
+        return None
+
+############################################################################
+def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count):
     """Calculate parameters for an optimal rocket configuration."""
     mu = calculate_optimal_mu(payload_mass_ratio_total, eps, Ve)
 
@@ -202,7 +262,7 @@ def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stag
     m_prop = [None] * stages_count
     for i in range(stages_count - 1, -1, -1):
         if i == stages_count - 1: # last section
-            m0[i] = m_payload / lambda_optimal[i] # last section mass
+            m0[i] = m_payload_without_boosters / lambda_optimal[i] # last section mass
             m_prop[i] = m0[i] * phi[i]
         else:
             m0[i] = m0[i+1] / lambda_optimal[i]
@@ -214,7 +274,7 @@ def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stag
 
 
 ############################################################################
-def non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, stages_count):
+def non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count):
     lambda_of_non_optimal_rocket = payload_mass_ratio_total**(1 / stages_count)
     
     phi = [None] * stages_count
@@ -234,7 +294,7 @@ def non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload, 
 
     for i in range(stages_count - 1, -1, -1):
         if i == stages_count - 1: # last section
-            m0[i] = m_payload / lambda_of_non_optimal_rocket # last section mass
+            m0[i] = m_payload_without_boosters / lambda_of_non_optimal_rocket # last section mass
             m_prop[i] = m0[i] * phi[-1]
         else:
             m0[i] = m0[i+1] / lambda_of_non_optimal_rocket

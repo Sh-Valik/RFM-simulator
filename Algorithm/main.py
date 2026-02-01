@@ -35,18 +35,17 @@ rocket_type = data["rocket_type"]
 
 if input_mode == "Start mass & Propellant":
     stage_data_list = data["stages_data_mass"]
-    # Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
+    Ve_stages, mass_flow_stages, m0_stages, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
     if has_boosters:
         booster_data_list = data["boosters_data_mass"]
-        # Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count) # Need to be changed due the logic of the algorithm will change slightly
+        # palceholder
 
 else:
     stage_data_list = data["stages_data_eps"]
-    # Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
+    Ve_stages, mass_flow_stages, m0_stages, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
     if has_boosters:
         booster_data_list = data["boosters_data_eps"]
-        # Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count) # Need to be changed due the logic of the algorithm will change slightly
-
+        Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, m_construction_boosters, Lambda_with_boosters, m0 = parameters_of_boosters(input_mode, booster_data_list, m_payload_without_boosters, m_payload_with_boosters, Vf_id_stages, m0_stages, m_prop_stages, stages_count, booster_count, Ve_stages, t_burn_ratio)
 
 
 launch_lat = data["launch_lat"]
