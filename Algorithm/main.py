@@ -15,7 +15,9 @@ data = load_data()
 ############################################################################
 # Rocket and mission parameters
 
-m_payload = data["payload_mass"]
+m_payload_without_boosters = data["payload_mass_without_booster"]
+m_payload_with_boosters = data["payload_mass_with_booster"]
+
 theta_angle_deg = data["theta_angle"]
 theta_angle = np.radians(theta_angle_deg)
 
@@ -23,6 +25,7 @@ stages_count = data["stages_count"]
 has_boosters = data["has_boosters"]
 if has_boosters:
     booster_count = data["booster_count"]
+    t_burn_ratio = data["t_burn_ratio"]
 
 payload_mass_ratio_total = data["payload_mass_ratio_total"]
 input_mode = data["input_mode"]
@@ -30,17 +33,17 @@ rocket_type = data["rocket_type"]
 
 if input_mode == "Start mass & Propellant":
     stage_data_list = data["stages_data_mass"]
-    Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
+    # Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
     if has_boosters:
         booster_data_list = data["boosters_data_mass"]
-        Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
+        # Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count) # Need to be changed due the logic of the algorithm will change slightly
 
 else:
     stage_data_list = data["stages_data_eps"]
-    Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count)
+    # Ve_stages, mass_flow_stages, m0, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
     if has_boosters:
         booster_data_list = data["boosters_data_eps"]
-        Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count)
+        # Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, Vf_id_boosters, Lambda_boosters = parameters_of_stages(input_mode, booster_data_list, m_payload, payload_mass_ratio_total, rocket_type, booster_count) # Need to be changed due the logic of the algorithm will change slightly
 
 
 

@@ -48,7 +48,9 @@ st.header("General Parameters")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.number_input("Payload Mass (kg)", min_value=0.0, value=data["payload_mass"], step=100.0, key="payload_mass", on_change=lambda: update_field("payload_mass", st.session_state.payload_mass), help="Mass of the payload to be delivered to orbit.")
+    st.number_input("Payload Mass (kg) (Without boosters)", min_value=0.0, value=data["payload_mass_without_booster"], step=100.0, key="payload_mass_without_booster", on_change=lambda: update_field("payload_mass_without_booster", st.session_state.payload_mass_without_booster), help="Mass of the payload to be delivered to orbit without boosters.")
+    st.number_input("Payload Mass (kg) (With boosters)", min_value=0.0, value=data["payload_mass_with_booster"], step=100.0, key="payload_mass_with_booster", on_change=lambda: update_field("payload_mass_with_booster", st.session_state.payload_mass_with_booster), help="Mass of the payload to be delivered to orbit with boosters.")
+    
     st.checkbox("Has Boosters", value=data["has_boosters"], key="has_boosters", on_change=lambda: update_field("has_boosters", st.session_state.has_boosters), help="Check if the rocket has additional boosters for extra thrust.")
 
 
@@ -67,6 +69,7 @@ with col2:
     st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Launch angle of the rocket relative to the horizontal plane.")
     if data["has_boosters"]:
         st.number_input("Number of rocket boosters", min_value=1, max_value=10, value=data["booster_count"], step=1, key="booster_count", on_change=lambda: counter_sync("booster_count", "boosters"), help="Number of additional boosters attached to the rocket for extra thrust.")
+        st.number_input("Burn times ration", min_value = 0, max_value = 1, value=data["t_burn_ratio"], step=0.01, key="t_burn_ratio", on_change=lambda: update_field("t_burn_ratio", st.session_state.t_burn_ratio), help="Ratio betweem burn time of first stage and burn time of boosters.")
 
     if st.session_state.input_mode == "EPS & lambda":
         r_types = ["Optimal", "Non-optimal"]
