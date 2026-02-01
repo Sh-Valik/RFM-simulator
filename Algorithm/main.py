@@ -1,4 +1,4 @@
-from functions import derivatives, parameters_of_stages
+from Algorithm.functions import Derivatives, parameters_of_stages
 import numpy as np
 from scipy.integrate import odeint
 import json
