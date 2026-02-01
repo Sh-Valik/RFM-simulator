@@ -21,6 +21,7 @@ DEFAULT_DATA = {
     "booster_count": 2,
     "t_burn_ratio": 0.71,
     "payload_mass_ratio_total": 0.03,
+    "t_vertical_flight": 15.0,
     "input_mode": "EPS & lambda",
     "rocket_type": "Optimal",
     "stages_data_mass": [
@@ -39,9 +40,9 @@ DEFAULT_DATA = {
         {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00}, # EPS and Ve - Stoil
         {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00} # EPS and Ve - Stoil
     ],
-    "launch_lat": 0.0, "launch_lon": 0.0, "launch_alt": 0.0,
+    "launch_lat": 25.991389, "launch_lon": -97.183611, "launch_alt": 0.91,
     "launch_date": "2026-02-10", "launch_time": "07:15:00", # Stoil. Time UTC
-    "orbit_a": 7000.0, "orbit_e": 0.0, "orbit_i": 0.0, "orbit_Ω": 0.0, "orbit_ω": 0.0, "orbit_ν": 0.0
+    "orbit_a": 26571.0, "orbit_e": 0.0, "orbit_i": 55.0
 }
 
 def cleanup_old_sessions():

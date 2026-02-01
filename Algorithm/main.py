@@ -28,6 +28,8 @@ if has_boosters:
     t_burn_ratio = data["t_burn_ratio"]
 
 payload_mass_ratio_total = data["payload_mass_ratio_total"]
+t_vertical_flight = data["t_vertical_flight"]
+
 input_mode = data["input_mode"]
 rocket_type = data["rocket_type"]
 
@@ -56,9 +58,6 @@ launch_time = data["launch_time"]
 t_o_a = data["orbit_a"]
 t_o_e = data["orbit_e"]
 t_o_i = data["orbit_i"]
-t_o_Ω = data["orbit_Ω"]
-t_o_ω = data["orbit_ω"]
-t_o_ν = data["orbit_ν"]
 
 
 ############################################################################

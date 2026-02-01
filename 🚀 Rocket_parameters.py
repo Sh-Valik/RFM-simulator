@@ -44,17 +44,12 @@ def counter_sync(count_key, category):
 
 ######################
 st.title("🚀 Rocket Parameters")
+
+######################
 st.header("General Parameters")
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 
 with col1:
-    st.number_input("Payload Mass (kg) (Without boosters)", min_value=0.0, value=data["payload_mass_without_booster"], step=100.0, key="payload_mass_without_booster", on_change=lambda: update_field("payload_mass_without_booster", st.session_state.payload_mass_without_booster), help="Mass of the payload to be delivered to orbit without boosters.")
-    st.number_input("Payload Mass (kg) (With boosters)", min_value=0.0, value=data["payload_mass_with_booster"], step=100.0, key="payload_mass_with_booster", on_change=lambda: update_field("payload_mass_with_booster", st.session_state.payload_mass_with_booster), help="Mass of the payload to be delivered to orbit with boosters.")
-    
-    st.checkbox("Has Boosters", value=data["has_boosters"], key="has_boosters", on_change=lambda: update_field("has_boosters", st.session_state.has_boosters), help="Check if the rocket has additional boosters for extra thrust.")
-
-
-
     input_mode = ["EPS & lambda", "Start mass & Propellant"]
     current_mode_value = data.get("input_mode", "EPS & lambda")
     try:
@@ -64,31 +59,45 @@ with col1:
 
     st.radio("Rocket parameters input mode", options=input_mode, index=mode_index, key="input_mode", on_change=lambda: update_field("input_mode", st.session_state.input_mode), help="Select the method for inputting rocket parameters. EPS is construction mass ratio, lambda is payload mass ratio.")
 
-
 with col2:
-    st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Launch angle of the rocket relative to the horizontal plane.")
-    if data["has_boosters"]:
-        st.number_input("Number of rocket boosters", min_value=1, max_value=10, value=data["booster_count"], step=1, key="booster_count", on_change=lambda: counter_sync("booster_count", "boosters"), help="Number of additional boosters attached to the rocket for extra thrust.")
-        st.number_input("Burn times ration", min_value = 0, max_value = 1, value=data["t_burn_ratio"], step=0.01, key="t_burn_ratio", on_change=lambda: update_field("t_burn_ratio", st.session_state.t_burn_ratio), help="Ratio betweem burn time of first stage and burn time of boosters.")
-
     if st.session_state.input_mode == "EPS & lambda":
         r_types = ["Optimal", "Non-optimal"]
         r_idx = r_types.index(data.get("rocket_type", "Optimal")) if data.get("rocket_type", "Optimal") in r_types else 0
         st.radio("Type of a Rocket", options=r_types, index=r_idx, key="rocket_type", on_change=lambda: update_field("rocket_type", st.session_state.rocket_type), help="Select whether the rocket is designed for optimal or non-optimal performance.")
+st.divider()
+######################
+st.header("Payload parameters")
+col1, col2, col3 = st.columns(3)
 
-        
+with col1:
+    st.number_input("Payload Mass (kg) (Without boosters)", min_value=0.0, value=data["payload_mass_without_booster"], step=100.0, key="payload_mass_without_booster", on_change=lambda: update_field("payload_mass_without_booster", st.session_state.payload_mass_without_booster), help="Mass of the payload to be delivered to orbit without boosters.")
+
+with col2:
+    st.number_input("Payload Mass (kg) (With boosters)", min_value=0.0, value=data["payload_mass_with_booster"], step=100.0, key="payload_mass_with_booster", on_change=lambda: update_field("payload_mass_with_booster", st.session_state.payload_mass_with_booster), help="Mass of the payload to be delivered to orbit with boosters.")
+
 with col3:
-    st.number_input("Number of rocket stages", min_value=1, max_value=10, value=data["stages_count"], step=1, key="stages_count", on_change=lambda: counter_sync("stages_count", "stages"), help="Number of stages in the rocket. Each stage is jettisoned when its fuel is expended.")
-    
-
     if st.session_state.input_mode == "EPS & lambda":
         st.number_input("Total payload mass ratio", min_value=0.0, max_value=1.0, value=data["payload_mass_ratio_total"], step=0.01, key="payload_mass_ratio", on_change=lambda: update_field("payload_mass_ratio", st.session_state.payload_mass_ratio), help="Overall payload mass ratio of the rocket. Optimal rocket have optimal payload mass ratio distribution. Non-optimal rocket have equal payload mass ratio for each stage.")
 
+st.divider()
+######################
+st.header("Flight profile")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Launch angle of the rocket relative to the horizontal plane.")
+
+with col2:
+    st.number_input("Time of vertical flight (s)", min_value=0.0, value=data["t_vertical_flight"], step=1.0, key="t_vertical_flight", on_change=lambda: update_field("t_vertical_flight", st.session_state.t_vertical_flight), help="Time of vertical flight of the rocket.")
 
 st.divider()
-st.header("Stages Details")
+######################
+st.header("Stages parameters")
+col1, col2 = st.columns(2)
+with col1:
+    st.number_input("Number of rocket stages", min_value=1, max_value=10, value=data["stages_count"], step=1, key="stages_count", on_change=lambda: counter_sync("stages_count", "stages"), help="Number of stages in the rocket. Each stage is jettisoned when its fuel is expended.")
 
-
+st.subheader("Stages Details")
 current_mode = data.get("input_mode", "EPS & lambda")
 key_suffix = "mass" if current_mode == "Start mass & Propellant" else "eps"
 
@@ -103,9 +112,24 @@ edited_stages = st.data_editor(df_stages, use_container_width=True, key="ed_stag
 if st.session_state.ed_stages:
     update_field(stage_real_key, edited_stages.to_dict('records'))
 
+st.divider()
+######################
+st.header("Boosters parameters")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.checkbox("Has Boosters", value=data["has_boosters"], key="has_boosters", on_change=lambda: update_field("has_boosters", st.session_state.has_boosters), help="Check if the rocket has additional boosters for extra thrust.")
+    
+with col2:
+    if data["has_boosters"]:
+        st.number_input("Number of rocket boosters", min_value=1, max_value=10, value=data["booster_count"], step=1, key="booster_count", on_change=lambda: counter_sync("booster_count", "boosters"), help="Number of additional boosters attached to the rocket for extra thrust.")
+
+with col3:
+    if data["has_boosters"]:
+        st.number_input("Burn times ratio", min_value = 0.0, max_value = 1.0, value=data["t_burn_ratio"], step=0.01, key="t_burn_ratio", on_change=lambda: update_field("t_burn_ratio", st.session_state.t_burn_ratio), help="Ratio betweem burn time of first stage and burn time of boosters.")
+
 if data["has_boosters"]:
-    st.divider()
-    st.header("Boosters Details")
+    st.subheader("Boosters Details")
 
     boosters_real_key = f"boosters_data_{key_suffix}"
 
