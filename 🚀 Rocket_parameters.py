@@ -24,7 +24,7 @@ def counter_sync(count_key, category):
         new_row = {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 300.0}
     else:
         data_key = f"{category}_data_eps"
-        new_row = {"EPS": 0.08, "lambda": 0.03, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 300.0}
+        new_row = {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 300.0}
     
 
     current_list = current_data.get(data_key, [])
@@ -77,7 +77,7 @@ with col2:
 
 with col3:
     if st.session_state.input_mode == "EPS & lambda":
-        st.number_input("Total payload mass ratio", min_value=0.0, max_value=1.0, value=data["payload_mass_ratio_total"], step=0.01, key="payload_mass_ratio", on_change=lambda: update_field("payload_mass_ratio", st.session_state.payload_mass_ratio), help="Overall payload mass ratio of the rocket. Optimal rocket have optimal payload mass ratio distribution. Non-optimal rocket have equal payload mass ratio for each stage.")
+        st.number_input("Total payload mass ratio", min_value=0.0, max_value=1.0, value=data["payload_mass_ratio_total"], step=0.01, format="%.4f", key="payload_mass_ratio_total", on_change=lambda: update_field("payload_mass_ratio_total", st.session_state.payload_mass_ratio_total), help="Overall payload mass ratio of the rocket. Optimal rocket have optimal payload mass ratio distribution. Non-optimal rocket have equal payload mass ratio for each stage.")
 
 st.divider()
 ######################

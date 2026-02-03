@@ -5,9 +5,13 @@ from sidebar import sidebar
 
 
 from Algorithm.functions import plot_3d_orbit, plot_velocity_vs_time, plot_altitude_vs_time, plot_mass_vs_time, plot_density_vs_altitude, plot_temperature_profile, plot_drag_coefficient_vs_mach
+
+from Algorithm import main
 ##############################################################
 
 st.title("📈 Results")
+
+
 selected_plot = sidebar("results_page")
 
 ##############################################################

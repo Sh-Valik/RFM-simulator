@@ -176,7 +176,7 @@ def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payl
 
 
 ############################################################################
-def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_payload_with_boosters, Vf_id_stages, m0_stages, m_prop_stages, stage_count, booster_count, Ve_stages, t_burn_ratio):
+def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_payload_with_boosters, Vf_id_stages, m0_stages, m_prop_stages, stage_count, booster_count, Ve_stages, mass_flow_stages, t_burn_ratio):
     if input_mode == "Start mass & Propellant":
         # placeholder
         pass       
@@ -188,12 +188,13 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
 
         delta_m_payload = m_payload_with_boosters - m_payload_without_boosters
 
-        new_m0_stages = [m0_stages[i] + delta_m_payload for i in range(stage_count -1, 0, -1)]
+        new_m0_stages = [m0_stages[i] + delta_m_payload for i in range(stage_count)]
         phi_with_boosters = [None] * (stage_count - 1)
         Lambda_with_boosters = [None] * (stage_count - 1)
+
         for i in range(stage_count -1, 0, -1):
-            phi_with_boosters[i] = m_prop_stages[i] / new_m0_stages[i]
-            Lambda_with_boosters[i] = 1 / (1 - phi_with_boosters[i])
+            phi_with_boosters[i-1] = m_prop_stages[i] / new_m0_stages[i]
+            Lambda_with_boosters[i-1] = 1 / (1 - phi_with_boosters[i-1])
 
         Vf_id_with_boosters = [Ve_stages[i] * np.log(Lambda_with_boosters[i]) for i in range(stage_count - 1)]
 
@@ -205,37 +206,44 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
         deltaV_double_prim = Ve_stages[0] * np.log(Lambda_double_prim)
         deltaV_prim = Vf_id_first_stage_with_boosters - deltaV_double_prim
         
-        Lambda_prim = [np.exp(deltaV_prim / Ve_boosters[i]) for i in range(booster_count)]
-        mps_over_mp1 = [mps_over_mp1(Lambda_prim[i], phi_first_stage_with_boosters, eps[i], t_burn_ratio) for i in range(booster_count)]
-        m_prop_boosters = [mps_over_mp1[i] * m0_stages[0] for i in range(booster_count)]
+        mass_flow_boosters_total = sum(mass_flow_boosters)
+        Ve_equivalent = Ve_stages[0] - ((1 / (1 + mass_flow_stages[0] / mass_flow_boosters_total)) * (Ve_stages[0] - Ve_boosters[0]))
+        
+        Lambda_prim = np.exp(deltaV_prim / Ve_equivalent)
+        # mps_over_mp1_var = [mps_over_mp1(Lambda_prim[i], phi_first_stage_with_boosters, eps[i], t_burn_ratio) for i in range(booster_count)]
+        # m_prop_boosters = [mps_over_mp1_var[i] * m0_stages[0] for i in range(booster_count)]
+        y = 1 - (1/Lambda_prim)
+        m_prop_boosters = ((y * (m0_stages[0] + delta_m_payload)) - m_prop_stages[0] * t_burn_ratio) / (1 - (y / (1 - eps[0])))
+        m_construction_boosters = (eps[0] * m_prop_boosters) / (1 - eps[0])
 
-        m_construction_boosters = [(eps[i] * m_prop_boosters[i]) / (1 - eps[i]) for i in range(booster_count)]
-        m0_boosters = [m_prop_boosters[i] + m_construction_boosters[i] for i in range(booster_count)]
+        m_prop_each_boosters = [m_prop_boosters / booster_count for i in range(booster_count)]
+        m_construction_each_boosters = [m_construction_boosters / booster_count for i in range(booster_count)]
+        m0_each_boosters = [m_prop_each_boosters[i] + m_construction_each_boosters[i] for i in range(booster_count)]
 
 
-        new_m0_stages = np.insert(new_m0_stages, 0, m0_stages[0] + delta_m_payload + sum(m0_boosters))
+        new_m0_stages[0] = m0_stages[0] + delta_m_payload + sum(m0_each_boosters)
 
-        return Ve_boosters, mass_flow_boosters, m0_boosters, m_prop_boosters, m_construction_boosters, Lambda_with_boosters, new_m0_stages
+        return Ve_boosters, mass_flow_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
 
 
 ############################################################################
-def mps_over_mp1(Lambda, phi, eps, tbs_over_tb1):
-    A = (1 - 1 / Lambda_) * phi / (1 - epsilon)
-    B = (1 - 1 / Lambda_) - phi * tbs_over_tb1
-    C = -phi
+# def mps_over_mp1(Lambda_prim, phi, eps, tbs_over_tb1):
+#     A = (1 - 1 / Lambda_prim) * phi / (1 - eps)
+#     B = (1 - 1 / Lambda_prim) - phi * tbs_over_tb1
+#     C = -phi
 
-    D = B**2 - 4 * A * C
-    x1 = (-B + math.sqrt(D)) / (2 * A)
-    x2 = (-B - math.sqrt(D)) / (2 * A)
+#     D = B**2 - 4 * A * C
+#     x1 = (-B + np.sqrt(D)) / (2 * A)
+#     x2 = (-B - np.sqrt(D)) / (2 * A)
 
-    if x1 > 0 and x2 > 0:
-        return min(x1, x2)
-    elif x1 > 0:
-        return x1
-    elif x2 > 0:
-        return x2
-    else:
-        return None
+#     if x1 > 0 and x2 > 0:
+#         return min(x1, x2)
+#     elif x1 > 0:
+#         return x1
+#     elif x2 > 0:
+#         return x2
+#     else:
+#         return None
 
 ############################################################################
 def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count):
