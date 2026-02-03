@@ -85,11 +85,11 @@ st.header("Flight profile")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Launch angle of the rocket relative to the horizontal plane.")
+    st.number_input("Time of vertical flight (s)", min_value=0.0, value=data["t_vertical_flight"], step=1.0, key="t_vertical_flight", on_change=lambda: update_field("t_vertical_flight", st.session_state.t_vertical_flight), help="Time of vertical flight of the rocket.")
+    # st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Launch angle of the rocket relative to the horizontal plane.")
 
 with col2:
-    st.number_input("Time of vertical flight (s)", min_value=0.0, value=data["t_vertical_flight"], step=1.0, key="t_vertical_flight", on_change=lambda: update_field("t_vertical_flight", st.session_state.t_vertical_flight), help="Time of vertical flight of the rocket.")
-
+    pass
 st.divider()
 ######################
 st.header("Stages parameters")
@@ -109,8 +109,11 @@ df_stages.index.name = "Stage"
 edited_stages = st.data_editor(df_stages, use_container_width=True, key="ed_stages")
 
 # Save the table if it has changed
-if st.session_state.ed_stages:
+# if st.session_state.ed_stages:
+#     update_field(stage_real_key, edited_stages.to_dict('records'))
+if not edited_stages.equals(df_stages):
     update_field(stage_real_key, edited_stages.to_dict('records'))
+    st.rerun()
 
 st.divider()
 ######################
@@ -140,5 +143,8 @@ if data["has_boosters"]:
     edited_boosters = st.data_editor(df_boosters, use_container_width=True, key="ed_boosters")
 
     # Save the table if it has changed
-    if st.session_state.ed_boosters:
+    # if st.session_state.ed_boosters:
+    #     update_field(boosters_real_key, edited_boosters.to_dict('records'))
+    if not edited_boosters.equals(df_boosters):
         update_field(boosters_real_key, edited_boosters.to_dict('records'))
+        st.rerun()
