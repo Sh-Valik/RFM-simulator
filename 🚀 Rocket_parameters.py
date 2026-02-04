@@ -24,7 +24,7 @@ def counter_sync(count_key, category):
         new_row = {"Start Mass (kg)": 1000.0, "Propellant (kg)": 1000.0, "Mass flow (kg/s)": 300.0, "Ve (m/s)": 300.0}
     else:
         data_key = f"{category}_data_eps"
-        new_row = {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 300.0}
+        new_row = {"EPS": 0.0, "Mass_flow (kg/s)": 0.0, "Ve (m/s)": 0.0, "Diameter (m)": 0.0, "Height (m)": 0.0}
     
 
     current_list = current_data.get(data_key, [])

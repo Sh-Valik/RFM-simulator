@@ -12,13 +12,15 @@ from Algorithm import main
 st.title("📈 Results")
 
 
-selected_plot = sidebar("results_page")
+selected_option = sidebar("results_page")
 
 ##############################################################
-if selected_plot == "3D Orbit":
+if selected_option == "Parameters":
+    pass
+elif selected_option == "3D Orbit":
     # plot_3d_orbit(results_data)
     pass
-elif selected_plot == "Velocity vs Time":
+elif selected_option == "Velocity vs Time":
     tab_velocity_m_s, tab_velocity_mach = st.tabs(["Velocity (m/s)", "Velocity (Mach)"])
     with tab_velocity_m_s:
         st.header("Velocity vs Time (m/s)")
@@ -27,16 +29,16 @@ elif selected_plot == "Velocity vs Time":
         st.header("Velocity vs Time (Mach)")
         # Code for plotting velocity vs time in Mach numbers
     # plot_velocity_vs_time(results_data)
-elif selected_plot == "Altitude vs Time":
+elif selected_option == "Altitude vs Time":
     pass
     # plot_altitude_vs_time(results_data)
-elif selected_plot == "Mass vs Time":
+elif selected_option == "Mass vs Time":
     # plot_mass_vs_time(results_data)
     st.write("Plotting Mass vs Time...")
-elif selected_plot == "Density vs Altitude":
+elif selected_option == "Density vs Altitude":
     # plot_density_vs_altitude(results_data)
     st.write("Plotting Density vs Altitude...")
-elif selected_plot == "Temperature profile":
+elif selected_option == "Temperature profile":
     plot_temperature_profile()
-elif selected_plot == "Drag coefficient vs Mach":
+elif selected_option == "Drag coefficient vs Mach":
     plot_drag_coefficient_vs_mach()

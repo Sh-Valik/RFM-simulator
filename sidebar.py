@@ -14,9 +14,9 @@ def sidebar(page_type):
             st.session_state["simulation_results"] = results
             st.switch_page("pages/2_📈_Results.py")
     elif page_type == "results_page":
-        st.sidebar.subheader("Visualization Settings")
+        st.sidebar.subheader("Results options")
         plot_option = st.sidebar.radio(
-                "Choose plot:",
-                ["3D Orbit", "Velocity vs Time", "Altitude vs Time", "Mass vs Time", "Density vs Altitude", "Temperature profile", "Drag coefficient vs Mach"] 
+                "Choose a option:",
+                ["Parameters", "3D Orbit", "Velocity vs Time", "Altitude vs Time", "Mass vs Time", "Density vs Altitude", "Temperature profile", "Drag coefficient vs Mach"] 
             )
         return plot_option

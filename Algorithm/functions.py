@@ -45,9 +45,9 @@ def temperature_by_altitude(Rplanet, x, y, z):
 
 
 ############################################################################
-def gravity(Rplanet, g0, x, y, z):
-    """ Gravitational acceleration computation """
-    
+def gravity(Rplanet, G, Mplanet, x, y, z):
+    """ Gravitational acceleration computation with J2 perturbation """
+    J2 = 0.00108263
     r = np.sqrt(x**2 + y**2 + z**2)
 
     if r < Rplanet:
@@ -55,9 +55,9 @@ def gravity(Rplanet, g0, x, y, z):
         accely = 0.0
         accelz = 0.0
     else:
-        accelx = g0 * ((Rplanet**2) / (r**3)) * x
-        accely = g0 * ((Rplanet**2) / (r**3)) * y
-        accelz = g0 * ((Rplanet**2) / (r**3)) * z
+        accelx = (((G * Mplanet) / r**3) * x) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet * (x / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
+        accely = (((G * Mplanet) / r**3) * y) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet * (y / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
+        accelz = (((G * Mplanet) / r**3) * z) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet * (z / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
     
     return np.array([accelx, accely, accelz])
 ############################################################################
@@ -86,11 +86,18 @@ def propulsion(t, t_burn, T_mag, m_flow, theta):
 ############################################################################
 def density(x, y, z, Rplanet):
     """Air density on current altitude"""
-    rho0 = 1.225 # density of the air at sea level [kg/m^3]
-    Hm = 8500 # [m]
+    rho0 = 1.293 # density of the air at sea level [kg/m^3]
+    Hm = 8432.56 # [m]
     alt = np.sqrt(x**2 + y**2 + z**2) - Rplanet
     rho = rho0 * np.exp(- alt / Hm)
     return rho
+############################################################################
+
+############################################################################
+def q_dynamic_pressure(rho, V):
+    """Dynamic pressure computation"""
+    q = 0.5 * rho * abs(V)**2
+    return q
 ############################################################################
 
 
@@ -121,10 +128,12 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
     V = np.sqrt(velx**2 + vely**2 + velz**2)
     rho_alt = density(x, y, z, Rplanet)
     Temp_local = temperature_by_altitude(Rplanet, x, y, z)
-    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s]
+    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
     Mach = V / loc_sound_speed
     Cd = drag_interp(Mach)
     aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
+
+    q = q_dynamic_pressure(min(rho_alt, 1.293), V)
 
     # Thrust
     thrustF, mdot = propulsion(t, t_burn, T_mag, m_flow, theta)
@@ -164,6 +173,8 @@ def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payl
         eps = [stage["EPS"] for stage in data_list]
         mass_flow = [stage["Mass_flow (kg/s)"] for stage in data_list]
         Ve = [stage["Ve (m/s)"] for stage in data_list]
+        diameter_stages = [stage["Diameter (m)"] for stage in data_list]
+        height_stages = [stage["Height (m)"] for stage in data_list]
 
         if rocket_type == "Optimal":
             m0, m_prop, Vf_id, Lambda = optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count)
@@ -171,7 +182,7 @@ def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payl
             m0, m_prop, Vf_id, Lambda = non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count)
 
     
-    return Ve, mass_flow, m0, m_prop, Vf_id, Lambda
+    return Ve, mass_flow, diameter_stages, height_stages, m0, m_prop, Vf_id, Lambda
 ############################################################################
 
 
@@ -185,6 +196,8 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
         eps = [booster["EPS"] for booster in data_list]
         mass_flow_boosters = [booster["Mass_flow (kg/s)"] for booster in data_list]
         Ve_boosters = [booster["Ve (m/s)"] for booster in data_list]
+        diameter_boosters = [booster["Diameter (m)"] for booster in data_list]
+        height_boosters = [booster["Height (m)"] for booster in data_list]
 
         delta_m_payload = m_payload_with_boosters - m_payload_without_boosters
 
@@ -210,8 +223,7 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
         Ve_equivalent = Ve_stages[0] - ((1 / (1 + mass_flow_stages[0] / mass_flow_boosters_total)) * (Ve_stages[0] - Ve_boosters[0]))
         
         Lambda_prim = np.exp(deltaV_prim / Ve_equivalent)
-        # mps_over_mp1_var = [mps_over_mp1(Lambda_prim[i], phi_first_stage_with_boosters, eps[i], t_burn_ratio) for i in range(booster_count)]
-        # m_prop_boosters = [mps_over_mp1_var[i] * m0_stages[0] for i in range(booster_count)]
+        
         y = 1 - (1/Lambda_prim)
         m_prop_boosters = ((y * (m0_stages[0] + delta_m_payload)) - m_prop_stages[0] * t_burn_ratio) / (1 - (y / (1 - eps[0])))
         m_construction_boosters = (eps[0] * m_prop_boosters) / (1 - eps[0])
@@ -223,27 +235,11 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
 
         new_m0_stages[0] = m0_stages[0] + delta_m_payload + sum(m0_each_boosters)
 
-        return Ve_boosters, mass_flow_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
+        return Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
 
 
 ############################################################################
-# def mps_over_mp1(Lambda_prim, phi, eps, tbs_over_tb1):
-#     A = (1 - 1 / Lambda_prim) * phi / (1 - eps)
-#     B = (1 - 1 / Lambda_prim) - phi * tbs_over_tb1
-#     C = -phi
 
-#     D = B**2 - 4 * A * C
-#     x1 = (-B + np.sqrt(D)) / (2 * A)
-#     x2 = (-B - np.sqrt(D)) / (2 * A)
-
-#     if x1 > 0 and x2 > 0:
-#         return min(x1, x2)
-#     elif x1 > 0:
-#         return x1
-#     elif x2 > 0:
-#         return x2
-#     else:
-#         return None
 
 ############################################################################
 def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count):

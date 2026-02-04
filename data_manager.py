@@ -15,7 +15,7 @@ if not os.path.exists(SESSION_DIR):
 DEFAULT_DATA = {
     "payload_mass_without_booster": 2880.0, # Stoil
     "payload_mass_with_booster": 3880.0, # Stoil
-    "theta_angle": 80.0,
+    #"theta_angle": 80.0,
     "stages_count": 2, # Stoil
     "has_boosters": True,
     "booster_count": 2,
@@ -33,12 +33,12 @@ DEFAULT_DATA = {
         {"Start Mass (kg)": 1555.56, "Propellant (kg)": 1444.44, "Mass flow (kg/s)": 322.22, "Ve (m/s)": 2900.00}
     ],
     "stages_data_eps": [
-        {"EPS": 0.11, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 3400.0}, # EPS and Ve - Stoil
-        {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 3900.0} # EPS and Ve - Stoil
+        {"EPS": 0.11, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 3400.0, "Diameter (m)": 3.7, "Height (m)": 42.6}, # EPS and Ve - Stoil
+        {"EPS": 0.08, "Mass_flow (kg/s)": 170.0, "Ve (m/s)": 3900.0, "Diameter (m)": 3.7, "Height (m)": 12.6} # EPS and Ve - Stoil
     ],
     "boosters_data_eps": [
-        {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00}, # EPS and Ve - Stoil
-        {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00} # EPS and Ve - Stoil
+        {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00, "Diameter (m)": 3.7, "Height (m)": 42.6}, # EPS and Ve - Stoil
+        {"EPS": 0.1, "Mass_flow (kg/s)": 322.22, "Ve (m/s)": 2900.00, "Diameter (m)": 3.7, "Height (m)": 42.6} # EPS and Ve - Stoil
     ],
     "launch_lat": 25.991389, "launch_lon": -97.183611, "launch_alt": 0.91,
     "launch_date": "2026-02-10", "launch_time": "07:15:00", # Stoil. Time UTC
