@@ -1,6 +1,5 @@
-from Algorithm.functions import Derivatives, parameters_of_stages, parameters_of_boosters
+from Algorithm.functions import parameters_of_stages, parameters_of_boosters, geodetic_to_cartesian_WGS84, integration
 import numpy as np
-from scipy.integrate import odeint
 import json
 import os
 from data_manager import load_data
@@ -67,6 +66,12 @@ def run_simulation(data):
 
     Cd_of_crosflow_cylinder = 1.25 # for stages and boosters in ballistic flight
     #######################################################
+    
+    # Burn time
+    t_burn_stages = [m_prop_stages[i] / mass_flow_stages[i] for i in range(stages_count)]
+    if has_boosters:
+        t_burn_boosters = t_burn_stages[0] * t_burn_ratio
+    #######################################################    
 
     # Thrust magnitude for each stage
     T_mag_stages = [mass_flow_stages[i] * Ve_stages[i] for i in range(stages_count)]
@@ -74,4 +79,76 @@ def run_simulation(data):
         T_mag_boosters = [mass_flow_boosters[i] * Ve_boosters[i] for i in range(booster_count)]
     #######################################################
     
+    x0, y0, z0 = geodetic_to_cartesian_WGS84(launch_lat, launch_lon, launch_alt)
     
+
+    # velx0, vely0, velz0 = launch_velocity(Rplanet, launch_lat, SMA=t_o_a, inclination=t_o_i)
+    Vpad = ((2 * np.pi * Rplanet) / (24*60*60)) * np.cos(np.deg2rad(launch_lat))
+    velx0 = Vpad
+    vely0 = 0.0
+    velz0 = 0.0
+
+    Azimuth = np.asin((np.cos(np.deg2rad(t_o_i))) / (np.cos(np.deg2rad(launch_lat))))
+    
+    #######################################################
+    # Define all necessary arrays for each stage
+    stateinitial_stages = [None] * stages_count
+
+    tout_stages = [None] * stages_count
+    stateout_stages = [None] * stages_count
+    tout_b_stages = [None] * stages_count
+    stateout_b_stages = [None] * stages_count
+
+    xout_stages = [None] * stages_count
+    yout_stages = [None] * stages_count
+    zout_stages = [None] * stages_count
+
+    xout_b_stages = [None] * stages_count
+    yout_b_stages = [None] * stages_count
+    zout_b_stages = [None] * stages_count
+
+    velxout_stages = [None] * stages_count
+    velyout_stages = [None] * stages_count
+    velzout_stages = [None] * stages_count
+    velmag_stages = [None] * stages_count
+
+    velxout_b_stages = [None] * stages_count
+    velyout_b_stages = [None] * stages_count
+    velzout_b_stages = [None] * stages_count
+    
+    # Define all necessary arrays for each booster
+    if has_boosters:
+        stateinitial_boosters = [None] * booster_count
+
+        tout_boosters = [None] * booster_count
+        stateout_boosters = [None] * booster_count
+        tout_b_boosters = [None] * booster_count
+        stateout_b_boosters = [None] * booster_count
+
+        xout_boosters = [None] * booster_count
+        yout_boosters = [None] * booster_count
+        zout_boosters = [None] * booster_count
+
+        xout_b_boosters = [None] * booster_count
+        yout_b_boosters = [None] * booster_count
+        zout_b_boosters = [None] * booster_count
+
+        velxout_boosters = [None] * booster_count
+        velyout_boosters = [None] * booster_count
+        velzout_boosters = [None] * booster_count
+        velmag_boosters = [None] * booster_count
+
+        velxout_b_boosters = [None] * booster_count
+        velyout_b_boosters = [None] * booster_count
+        velzout_b_boosters = [None] * booster_count
+
+#######################################################
+
+    for i in range(stages_count):
+        if i == 0:
+            if has_boosters:
+                stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0[i]])
+            else:
+                stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_stages[i]])
+            
+            

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import brentq
+from scipy.integrate import solve_ivp, odeint
 import os
 import streamlit as st
 import plotly.express as px
@@ -64,18 +65,39 @@ def gravity(Rplanet, G, Mplanet, x, y, z):
 
 
 ############################################################################
-def propulsion(t, t_burn, T_mag, m_flow, theta):
+def propulsion(t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta_rad, Az_rad, t_burn_boosters, T_mag_boosters, m_flow_boosters,boosters_count, has_boosters=True):
     """ Thrust and mass flow rate computation """
-    if t <= t_burn:
-        thrust_x = T_mag * np.cos(theta)
-        thrust_y = 0.0 # placeholder
-        thrust_z = T_mag * np.sin(theta)
+    if has_boosters:
+        if t <= t_burn_boosters:
+            T_mag = T_mag_stages
+            T_mag_stages_without_boosters = T_mag_stages
+            T_mag[0] = T_mag_stages_without_boosters[0] + sum(T_mag_boosters)
+            m_flow[0] = m_flow_stages[0] + m_flow_boosters * boosters_count
+
+        else:
+            T_mag = T_mag_stages
+            m_flow = m_flow_stages
+        
+    else:
+        T_mag = T_mag_stages
+        m_flow = m_flow_stages
+
+    if t <= t_vertical:
+        thrust_x = 0,0
+        thrust_y = 0.0
+        thrust_z = T_mag
         mdot = - m_flow  # mass flow rate [kg/s]
+    elif t > t_vertical and t < t_burn_stages:
+        thrust_x = T_mag * np.sin(theta_rad) * np.sin(Az_rad)
+        thrust_y = T_mag * np.sin(theta_rad) * np.cos(Az_rad)
+        thrust_z = T_mag * np.cos(theta_rad)
+        mdot = - m_flow 
     else:
         thrust_x = 0.0
         thrust_y = 0.0
         thrust_z = 0.0
         mdot = 0.0
+
 
     return np.array([thrust_x, thrust_y, thrust_z]), mdot
 
@@ -102,7 +124,7 @@ def q_dynamic_pressure(rho, V):
 
 
 ############################################################################
-def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
+def Derivatives(state, t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta, Az, Rplanet, G, Mplanet, Area, m_construction, t_burn_boosters, T_mag_boosters, m_flow_boosters, boosters_count, has_boosters=True):
     """ Computes the state derivatives """
     # State vector
     x = state[0]
@@ -111,7 +133,12 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
     velx = state[3]
     vely = state[4]
     velz = state[5]
+    # if t <= t_burn:
+    #     mass = state[6]
+    # else:
+    #     mass = m_construction
     mass = state[6]
+
 
     # compute xdot, ydot and zdot
     xdot = velx
@@ -121,7 +148,7 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
     # Compute the forces
     
     # Gravity force
-    gravityF = - gravity(Rplanet, g0, x, y, z) * mass
+    gravityF = - gravity(Rplanet, G, Mplanet, x, y, z) * mass
     
 
     # Aerodynamic force
@@ -136,7 +163,7 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
     q = q_dynamic_pressure(min(rho_alt, 1.293), V)
 
     # Thrust
-    thrustF, mdot = propulsion(t, t_burn, T_mag, m_flow, theta)
+    thrustF, mdot = propulsion(t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta, Az, t_burn_boosters, T_mag_boosters, m_flow_boosters,boosters_count, has_boosters=has_boosters)
 
 
     Forces = gravityF + aeroF + thrustF
@@ -154,6 +181,77 @@ def Derivatives(state, t, t_burn, T_mag, m_flow, theta, Rplanet, g0, Area):
     return statedot
 ############################################################################
 
+# def launch_velocity(Rplanet, launch_lat, SMA, inclination):
+#     Earth_mu = 3.986004418 * 10**14
+#     Vorb = np.sqrt(Earth_mu / SMA)
+#     Vpad = ((2 * np.pi * Rplanet) / (24*60*60)) * np.cos(np.deg2rad(launch_lat))
+#     Azimuth = np.asin((np.cos(np.deg2rad(inclination))) / (np.cos(np.deg2rad(launch_lat))))
+
+#     # velx0 = Vorb * np.cin(Azimuth) - Vpad
+#     # vely0 = Vorb * np.cos(Azimuth)
+#     # velz0 = 0.0
+#     velx0 = 
+#     return velx0, vely0, velz0
+############################################################################
+
+############################################################################
+def integration_stop_event(t, state, Rplanet):
+    """
+    Event function for solve_ivp. 
+    Returns 0 when the rocket hits the ground (Altitude = 0).
+    """
+    x, y, z = state[0], state[1], state[2]
+    # Текущее расстояние от центра планеты
+    r_current = np.sqrt(x**2 + y**2 + z**2)
+    
+    # Событие срабатывает, когда высота становится 0
+    return r_current - Rplanet
+    
+############################################################################
+
+############################################################################
+def integration(t_burn_stages, stateinitial, t_vertical, T_mag, m_flow, theta, Az, Rplanet, G, Mplanet, Area, m_construction): # need t be fix
+    max_simulation_time = 2000
+    t_span = (0, max_simulation_time)
+
+
+    fun = lambda t, y: Derivatives(y, t, t_burn_stages, t_vertical, T_mag, m_flow, theta, Az, Rplanet, G, Mplanet, Area, m_construction)
+
+
+    stop_event = lambda t, y: integration_stop_event(t, y, Rplanet)
+    stop_event.terminal = True
+    stop_event.direcion = -1
+
+    sol = solve_ivp(fun, t_span, stateinitial, events=stop_event, method='RK45', rtol=1e-6, max_step=0.5)
+
+    stateout = sol.y.T
+    tout = sol.t
+
+
+    tout_burn = np.linspace(0, t_burn_stages, 10000)
+    stateout_burn = odeint(Derivatives, stateinitial, tout_burn, args=(t_burn_stages, t_vertical, T_mag, m_flow, theta, Az, Rplanet, G, Mplanet, Area,))
+
+    return tout, stateout, tout_burn, stateout_burn
+
+
+############################################################################
+
+
+############################################################################
+def geodetic_to_cartesian_WGS84(latitude_deg, longitude_deg, altitude):
+    latitude = np.deg2rad(latitude_deg)
+    longitude = np.deg2rad(longitude_deg)
+    
+    a = 6378137 # [m]
+    e2 = 0.00669437999014
+    N = a / (np.sqrt(1 - e2 * np.sin(latitude)**2))
+
+    x = (N + altitude) * np.cos(latitude) * np.cos(longitude)
+    y = (N + altitude) * np.cos(latitude) * np.sin(longitude)
+    z = (N*(1 - e2) + altitude) * np.sin(latitude)
+
+    return x, y, z
+############################################################################
 
 ############################################################################
 def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count):
