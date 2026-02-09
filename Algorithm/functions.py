@@ -249,7 +249,7 @@ def integration(stateinitial, stages_info, boosters_info, m_construction, Area_p
 
     stop_event = lambda t, y: integration_stop_event(t, y)
     stop_event.terminal = True
-    stop_event.direcion = -1
+    stop_event.direction = -1
 
     sol = solve_ivp(fun, t_span, stateinitial, events=stop_event, method='RK45', rtol=1e-6, max_step=0.5)
 

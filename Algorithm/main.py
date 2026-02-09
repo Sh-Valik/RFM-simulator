@@ -122,6 +122,8 @@ def run_simulation(data):
     velxout_b_stages = [None] * stages_count
     velyout_b_stages = [None] * stages_count
     velzout_b_stages = [None] * stages_count
+
+    massout_stages = [None] * stages_count
     
     # Define all necessary arrays for each booster
     if has_boosters:
@@ -150,6 +152,8 @@ def run_simulation(data):
         velyout_b_boosters = [None] * booster_count
         velzout_b_boosters = [None] * booster_count
 
+        massout_boosters = [None] * booster_count
+
 #######################################################
     for i in range(stages_count):
         if has_boosters:
@@ -176,6 +180,8 @@ def run_simulation(data):
                 velyout_b_stages[i] = stateout_b_stages[i][:, 4]
                 velzout_b_stages[i] = stateout_b_stages[i][:, 5]
 
+                massout_stages[i] = stateout_b_stages[i][:, 6]
+
             else:
                 stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0[i]])
 
@@ -198,6 +204,8 @@ def run_simulation(data):
                 velxout_b_stages[i] = stateout_b_stages[i][:, 3]
                 velyout_b_stages[i] = stateout_b_stages[i][:, 4]
                 velzout_b_stages[i] = stateout_b_stages[i][:, 5]
+
+                massout_stages[i] = stateout_b_stages[i][:, 6]
         else:
             if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_stages[i]])
@@ -222,6 +230,8 @@ def run_simulation(data):
                 velyout_b_stages[i] = stateout_b_stages[i][:, 4]
                 velzout_b_stages[i] = stateout_b_stages[i][:, 5]
 
+                massout_stages[i] = stateout_b_stages[i][:, 6]
+
             else:
                 stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0_stages[i]])
 
@@ -244,6 +254,8 @@ def run_simulation(data):
                 velxout_b_stages[i] = stateout_b_stages[i][:, 3]
                 velyout_b_stages[i] = stateout_b_stages[i][:, 4]
                 velzout_b_stages[i] = stateout_b_stages[i][:, 5]
+
+                massout_stages[i] = stateout_b_stages[i][:, 6]
 
     if has_boosters:
         for i in range(booster_count):
@@ -269,4 +281,6 @@ def run_simulation(data):
             velyout_b_boosters[i] = stateout_b_boosters[i][:, 4]
             velzout_b_boosters[i] = stateout_b_boosters[i][:, 5]
 
-    return tout_stages, velmag_stages, stages_count
+            massout_boosters[i] = stateout_b_boosters[i][:, 6]
+
+    return tout_stages, massout_stages, stages_count
