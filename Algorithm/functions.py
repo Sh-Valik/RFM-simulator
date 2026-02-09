@@ -6,6 +6,13 @@ import os
 import streamlit as st
 import plotly.express as px
 import pandas as pd
+import plotly.graph_objects as go
+
+G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
+g0 = 9.80665  # standard gravitational acceleration [m/s^2]
+Rplanet = 6371000  # mean radius of the Earth [m]
+Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
@@ -36,7 +43,7 @@ cd_data = pd.DataFrame({'Mach': new_Mach, 'Cd': new_Cd})
 
 
 ############################################################################
-def temperature_by_altitude(Rplanet, x, y, z):
+def temperature_by_altitude(x, y, z):
     """ Temperature computation on current altitude """
     altitude = np.sqrt(x**2 + y**2 + z**2) - Rplanet
     Local_Temperature = temp_interp(altitude)
@@ -46,7 +53,7 @@ def temperature_by_altitude(Rplanet, x, y, z):
 
 
 ############################################################################
-def gravity(Rplanet, G, Mplanet, x, y, z):
+def gravity(x, y, z):
     """ Gravitational acceleration computation with J2 perturbation """
     J2 = 0.00108263
     r = np.sqrt(x**2 + y**2 + z**2)
@@ -65,29 +72,27 @@ def gravity(Rplanet, G, Mplanet, x, y, z):
 
 
 ############################################################################
-def propulsion(t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta_rad, Az_rad, t_burn_boosters, T_mag_boosters, m_flow_boosters,boosters_count, has_boosters=True):
+def propulsion(t, t_burn, t_vertical, T_mag_stages, m_flow_stages, theta_rad, Az_rad, t_burn_boosters, T_mag_boosters, m_flow_boosters, T_mag_, m_flow_, has_boosters=True):
     """ Thrust and mass flow rate computation """
     if has_boosters:
         if t <= t_burn_boosters:
-            T_mag = T_mag_stages
-            T_mag_stages_without_boosters = T_mag_stages
-            T_mag[0] = T_mag_stages_without_boosters[0] + sum(T_mag_boosters)
-            m_flow[0] = m_flow_stages[0] + m_flow_boosters * boosters_count
+            T_mag = T_mag_stages[0] + sum(T_mag_boosters)
+            m_flow = m_flow_stages[0] + sum(m_flow_boosters)
 
         else:
-            T_mag = T_mag_stages
-            m_flow = m_flow_stages
+            T_mag = T_mag_stages[0]
+            m_flow = m_flow_stages[0]
         
     else:
-        T_mag = T_mag_stages
-        m_flow = m_flow_stages
+        T_mag = T_mag_
+        m_flow = m_flow_
 
     if t <= t_vertical:
-        thrust_x = 0,0
+        thrust_x = 0.0
         thrust_y = 0.0
         thrust_z = T_mag
         mdot = - m_flow  # mass flow rate [kg/s]
-    elif t > t_vertical and t < t_burn_stages:
+    elif t > t_vertical and t < t_burn:
         thrust_x = T_mag * np.sin(theta_rad) * np.sin(Az_rad)
         thrust_y = T_mag * np.sin(theta_rad) * np.cos(Az_rad)
         thrust_z = T_mag * np.cos(theta_rad)
@@ -106,7 +111,7 @@ def propulsion(t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta_
 
 
 ############################################################################
-def density(x, y, z, Rplanet):
+def density(x, y, z):
     """Air density on current altitude"""
     rho0 = 1.293 # density of the air at sea level [kg/m^3]
     Hm = 8432.56 # [m]
@@ -124,8 +129,23 @@ def q_dynamic_pressure(rho, V):
 
 
 ############################################################################
-def Derivatives(state, t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta, Az, Rplanet, G, Mplanet, Area, m_construction, t_burn_boosters, T_mag_boosters, m_flow_boosters, boosters_count, has_boosters=True):
+def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters=True):
     """ Computes the state derivatives """
+
+    # Unpack stages_info
+    t_burn_stages = stages_info[0]
+    T_mag_stages = stages_info[1]
+    mass_flow_stages = stages_info[2]
+    m_prop_stages = stages_info[3]
+    m_construction_stages = stages_info[4]
+    
+    # Unpack boosters_info
+    t_burn_boosters = boosters_info[0]
+    T_mag_boosters = boosters_info[1]
+    mass_flow_boosters = boosters_info[2]
+    boosters_count = boosters_info[3]
+    
+    
     # State vector
     x = state[0]
     y = state[1]
@@ -133,47 +153,69 @@ def Derivatives(state, t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages
     velx = state[3]
     vely = state[4]
     velz = state[5]
-    # if t <= t_burn:
-    #     mass = state[6]
-    # else:
-    #     mass = m_construction
-    mass = state[6]
+    if has_boosters:
+        m_remaining_1st_stage = m_construction_stages[0] + (m_prop_stages[0] - mass_flow_stages[0] * t_burn_boosters)
+        if t <= t_burn_boosters:
+            mass = state[6]
+        elif t > t_burn_boosters and t < t_burn_stages[0]:
+            mass = m_remaining_1st_stage
+        else:
+            mass = m_construction_stages[0]
+    else:
+        if t <= t_burn:
+            mass = state[6]
+        else:
+            mass = m_construction
 
 
     # compute xdot, ydot and zdot
     xdot = velx
     ydot = vely
     zdot = velz
+
+    # Aerodynamic block
+    V = np.sqrt(velx**2 + vely**2 + velz**2)
+    rho_alt = density(x, y, z)
+    Temp_local = temperature_by_altitude(x, y, z)
+    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
+    Mach = V / loc_sound_speed
+    
+    # Area
+    apogee_reached = False
+    if velz < 0:
+        apogee_reached = True
+    
+    if apogee_reached:
+        Area = Area_bf
+        Cd = Cd_of_crosflow_cylinder
+    else:
+        Area = Area_pf
+        Cd = drag_interp(Mach)
     
     # Compute the forces
     
     # Gravity force
-    gravityF = - gravity(Rplanet, G, Mplanet, x, y, z) * mass
+    gravityF = - gravity(x, y, z) * mass
     
 
     # Aerodynamic force
-    V = np.sqrt(velx**2 + vely**2 + velz**2)
-    rho_alt = density(x, y, z, Rplanet)
-    Temp_local = temperature_by_altitude(Rplanet, x, y, z)
-    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
-    Mach = V / loc_sound_speed
-    Cd = drag_interp(Mach)
+    
     aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
 
-    q = q_dynamic_pressure(min(rho_alt, 1.293), V)
 
     # Thrust
-    thrustF, mdot = propulsion(t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages, theta, Az, t_burn_boosters, T_mag_boosters, m_flow_boosters,boosters_count, has_boosters=has_boosters)
+    thrustF, mdot = propulsion(t, t_burn, t_vertical, T_mag_stages, mass_flow_stages, theta_rad, Az_rad, t_burn_boosters, T_mag_boosters, mass_flow_boosters,T_mag_, m_flow_, has_boosters)
 
 
     Forces = gravityF + aeroF + thrustF
 
+    q = q_dynamic_pressure(min(rho_alt, 1.293), V)
     #--------------------------------------------    
     # Compute the resulting acceleration
     if mass > 0:
         vdot = Forces / mass
     else:
-        vdot = 0.0
+        vdot = np.zeros(3)
         mdot = 0.0
     
 
@@ -181,21 +223,8 @@ def Derivatives(state, t, t_burn_stages, t_vertical, T_mag_stages, m_flow_stages
     return statedot
 ############################################################################
 
-# def launch_velocity(Rplanet, launch_lat, SMA, inclination):
-#     Earth_mu = 3.986004418 * 10**14
-#     Vorb = np.sqrt(Earth_mu / SMA)
-#     Vpad = ((2 * np.pi * Rplanet) / (24*60*60)) * np.cos(np.deg2rad(launch_lat))
-#     Azimuth = np.asin((np.cos(np.deg2rad(inclination))) / (np.cos(np.deg2rad(launch_lat))))
-
-#     # velx0 = Vorb * np.cin(Azimuth) - Vpad
-#     # vely0 = Vorb * np.cos(Azimuth)
-#     # velz0 = 0.0
-#     velx0 = 
-#     return velx0, vely0, velz0
 ############################################################################
-
-############################################################################
-def integration_stop_event(t, state, Rplanet):
+def integration_stop_event(t, state):
     """
     Event function for solve_ivp. 
     Returns 0 when the rocket hits the ground (Altitude = 0).
@@ -210,15 +239,15 @@ def integration_stop_event(t, state, Rplanet):
 ############################################################################
 
 ############################################################################
-def integration(t_burn_stages, stateinitial, t_vertical, T_mag, m_flow, theta, Az, Rplanet, G, Mplanet, Area, m_construction): # need t be fix
-    max_simulation_time = 2000
+def integration(stateinitial, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, t_burn, T_mag_, m_flow_, has_boosters):
+    max_simulation_time = 3000
     t_span = (0, max_simulation_time)
 
 
-    fun = lambda t, y: Derivatives(y, t, t_burn_stages, t_vertical, T_mag, m_flow, theta, Az, Rplanet, G, Mplanet, Area, m_construction)
+    fun = lambda t, y: Derivatives(y, t, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters)
 
 
-    stop_event = lambda t, y: integration_stop_event(t, y, Rplanet)
+    stop_event = lambda t, y: integration_stop_event(t, y)
     stop_event.terminal = True
     stop_event.direcion = -1
 
@@ -228,8 +257,8 @@ def integration(t_burn_stages, stateinitial, t_vertical, T_mag, m_flow, theta, A
     tout = sol.t
 
 
-    tout_burn = np.linspace(0, t_burn_stages, 10000)
-    stateout_burn = odeint(Derivatives, stateinitial, tout_burn, args=(t_burn_stages, t_vertical, T_mag, m_flow, theta, Az, Rplanet, G, Mplanet, Area,))
+    tout_burn = np.linspace(0, t_burn, 10000)
+    stateout_burn = odeint(Derivatives, stateinitial, tout_burn, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
 
     return tout, stateout, tout_burn, stateout_burn
 
@@ -440,9 +469,41 @@ def calculate_optimal_mu(lambda_total, eps_list, Ve_list):
 ############################################################################
 ############################################################################
 # Functions for Result Page
+def test_plot(stages_count, velmag_stages, tout_stages):
+    st.markdown("### Select stages")
+
+    stage_visibility = []
+    for i in range(stages_count):
+        checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
+        stage_visibility.append(checked)
+
+    # ---------- Plot ----------
+    fig = go.Figure()
+
+    for i in range(stages_count):
+        if stage_visibility[i]:
+            fig.add_trace(
+                go.Scatter(
+                    x=tout_stages[i],
+                    y=velmag_stages[i],
+                    mode="lines",
+                    name=f"Stage {i + 1}"
+                )
+            )
+
+    fig.update_layout(
+        xaxis_title="Time (s)",
+        yaxis_title="Velocity magnitude (m/s)",
+        legend_title="Stages",
+        template="plotly_white",
+        height=600
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 def plot_3d_orbit(data):
     """Function to plot 3D Orbit"""
-    pass # placeholder for 3D orbit plotting code
+    pass
+    
 
 def plot_velocity_vs_time(data):
     """Function to plot velocity vs time"""

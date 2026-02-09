@@ -1,25 +1,20 @@
 import os
 import streamlit as st
-from data_manager import load_data
 from sidebar import sidebar
-
-
-from Algorithm.functions import plot_3d_orbit, plot_velocity_vs_time, plot_altitude_vs_time, plot_mass_vs_time, plot_density_vs_altitude, plot_temperature_profile, plot_drag_coefficient_vs_mach
-
-from Algorithm import main
+from Algorithm.functions import test_plot, plot_3d_orbit, plot_velocity_vs_time, plot_altitude_vs_time, plot_mass_vs_time, plot_density_vs_altitude, plot_temperature_profile, plot_drag_coefficient_vs_mach
+from data_manager import load_data
+from Algorithm.main import run_simulation
 ##############################################################
 
 st.title("📈 Results")
 
-
 selected_option = sidebar("results_page")
-
+tout_stages, velmag_stages, stages_count = run_simulation(load_data())
 ##############################################################
 if selected_option == "Parameters":
     pass
 elif selected_option == "3D Orbit":
-    # plot_3d_orbit(results_data)
-    pass
+    test_plot(stages_count, velmag_stages, tout_stages)
 elif selected_option == "Velocity vs Time":
     tab_velocity_m_s, tab_velocity_mach = st.tabs(["Velocity (m/s)", "Velocity (Mach)"])
     with tab_velocity_m_s:

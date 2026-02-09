@@ -54,6 +54,8 @@ def run_simulation(data):
     t_o_a = data["orbit_a"]
     t_o_e = data["orbit_e"]
     t_o_i = data["orbit_i"]
+    theta = 45 # need to be changed 
+    theta = np.radians(theta) 
     #######################################################
 
     # Cross-sectional areas
@@ -69,6 +71,7 @@ def run_simulation(data):
     
     # Burn time
     t_burn_stages = [m_prop_stages[i] / mass_flow_stages[i] for i in range(stages_count)]
+    m_construction_stages = [m0_stages[i] - m_prop_stages[i] for i in range(stages_count)]
     if has_boosters:
         t_burn_boosters = t_burn_stages[0] * t_burn_ratio
     #######################################################    
@@ -90,9 +93,13 @@ def run_simulation(data):
 
     Azimuth = np.asin((np.cos(np.deg2rad(t_o_i))) / (np.cos(np.deg2rad(launch_lat))))
     
+
+    stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_prop_stages, m_construction_stages]
+    boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, booster_count]
     #######################################################
     # Define all necessary arrays for each stage
     stateinitial_stages = [None] * stages_count
+    q_stages = [None] * stages_count
 
     tout_stages = [None] * stages_count
     stateout_stages = [None] * stages_count
@@ -119,6 +126,7 @@ def run_simulation(data):
     # Define all necessary arrays for each booster
     if has_boosters:
         stateinitial_boosters = [None] * booster_count
+        q_boosters = [None] * booster_count
 
         tout_boosters = [None] * booster_count
         stateout_boosters = [None] * booster_count
@@ -143,12 +151,122 @@ def run_simulation(data):
         velzout_b_boosters = [None] * booster_count
 
 #######################################################
-
     for i in range(stages_count):
-        if i == 0:
-            if has_boosters:
+        if has_boosters:
+            if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0[i]])
+                
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters)
+
+                xout_stages[i] = stateout_stages[i][:, 0]
+                yout_stages[i] = stateout_stages[i][:, 1]
+                zout_stages[i] = stateout_stages[i][:, 2]
+
+                velxout_stages[i] = stateout_stages[i][:, 3]
+                velyout_stages[i] = stateout_stages[i][:, 4]
+                velzout_stages[i] = stateout_stages[i][:, 5]
+
+                velmag_stages[i] = np.sqrt(velxout_stages[i]**2 + velyout_stages[i]**2 + velzout_stages[i]**2)
+
+                xout_b_stages[i] = stateout_b_stages[i][:, 0]
+                yout_b_stages[i] = stateout_b_stages[i][:, 1]
+                zout_b_stages[i] = stateout_b_stages[i][:, 2]
+
+                velxout_b_stages[i] = stateout_b_stages[i][:, 3]
+                velyout_b_stages[i] = stateout_b_stages[i][:, 4]
+                velzout_b_stages[i] = stateout_b_stages[i][:, 5]
+
             else:
+                stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0[i]])
+
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False)
+
+                xout_stages[i] = stateout_stages[i][:, 0]
+                yout_stages[i] = stateout_stages[i][:, 1]
+                zout_stages[i] = stateout_stages[i][:, 2]
+
+                velxout_stages[i] = stateout_stages[i][:, 3]
+                velyout_stages[i] = stateout_stages[i][:, 4]
+                velzout_stages[i] = stateout_stages[i][:, 5]
+
+                velmag_stages[i] = np.sqrt(velxout_stages[i]**2 + velyout_stages[i]**2 + velzout_stages[i]**2)
+
+                xout_b_stages[i] = stateout_b_stages[i][:, 0]
+                yout_b_stages[i] = stateout_b_stages[i][:, 1]
+                zout_b_stages[i] = stateout_b_stages[i][:, 2]
+
+                velxout_b_stages[i] = stateout_b_stages[i][:, 3]
+                velyout_b_stages[i] = stateout_b_stages[i][:, 4]
+                velzout_b_stages[i] = stateout_b_stages[i][:, 5]
+        else:
+            if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_stages[i]])
+                
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False)
+
+                xout_stages[i] = stateout_stages[i][:, 0]
+                yout_stages[i] = stateout_stages[i][:, 1]
+                zout_stages[i] = stateout_stages[i][:, 2]
+
+                velxout_stages[i] = stateout_stages[i][:, 3]
+                velyout_stages[i] = stateout_stages[i][:, 4]
+                velzout_stages[i] = stateout_stages[i][:, 5]
+
+                velmag_stages[i] = np.sqrt(velxout_stages[i]**2 + velyout_stages[i]**2 + velzout_stages[i]**2)
+
+                xout_b_stages[i] = stateout_b_stages[i][:, 0]
+                yout_b_stages[i] = stateout_b_stages[i][:, 1]
+                zout_b_stages[i] = stateout_b_stages[i][:, 2]
+
+                velxout_b_stages[i] = stateout_b_stages[i][:, 3]
+                velyout_b_stages[i] = stateout_b_stages[i][:, 4]
+                velzout_b_stages[i] = stateout_b_stages[i][:, 5]
+
+            else:
+                stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0_stages[i]])
+
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False)
+
+                xout_stages[i] = stateout_stages[i][:, 0]
+                yout_stages[i] = stateout_stages[i][:, 1]
+                zout_stages[i] = stateout_stages[i][:, 2]
+
+                velxout_stages[i] = stateout_stages[i][:, 3]
+                velyout_stages[i] = stateout_stages[i][:, 4]
+                velzout_stages[i] = stateout_stages[i][:, 5]
+
+                velmag_stages[i] = np.sqrt(velxout_stages[i]**2 + velyout_stages[i]**2 + velzout_stages[i]**2)
+
+                xout_b_stages[i] = stateout_b_stages[i][:, 0]
+                yout_b_stages[i] = stateout_b_stages[i][:, 1]
+                zout_b_stages[i] = stateout_b_stages[i][:, 2]
+
+                velxout_b_stages[i] = stateout_b_stages[i][:, 3]
+                velyout_b_stages[i] = stateout_b_stages[i][:, 4]
+                velzout_b_stages[i] = stateout_b_stages[i][:, 5]
+
+    if has_boosters:
+        for i in range(booster_count):
+            stateinitial_boosters[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_each_boosters[i]])
+
+            tout_boosters[i], stateout_boosters[i], tout_b_boosters[i], stateout_b_boosters[i] = integration(stateinitial_boosters[i], stages_info, boosters_info, m_construction_each_boosters[i], boosters_area_pf[i], boosters_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_boosters, T_mag_boosters[i], mass_flow_boosters[i], has_boosters=False)
             
-            
+            xout_boosters[i] = stateout_boosters[i][:, 0]
+            yout_boosters[i] = stateout_boosters[i][:, 1]
+            zout_boosters[i] = stateout_boosters[i][:, 2]
+
+            velxout_boosters[i] = stateout_boosters[i][:, 3]
+            velyout_boosters[i] = stateout_boosters[i][:, 4]
+            velzout_boosters[i] = stateout_boosters[i][:, 5]
+
+            velmag_boosters[i] = np.sqrt(velxout_boosters[i]**2 + velyout_boosters[i]**2 + velzout_boosters[i]**2)
+
+            xout_b_boosters[i] = stateout_b_boosters[i][:, 0]
+            yout_b_boosters[i] = stateout_b_boosters[i][:, 1]
+            zout_b_boosters[i] = stateout_b_boosters[i][:, 2]
+
+            velxout_b_boosters[i] = stateout_b_boosters[i][:, 3]
+            velyout_b_boosters[i] = stateout_b_boosters[i][:, 4]
+            velzout_b_boosters[i] = stateout_b_boosters[i][:, 5]
+
+    return tout_stages, velmag_stages, stages_count
