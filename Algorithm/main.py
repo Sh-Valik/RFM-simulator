@@ -87,15 +87,21 @@ def run_simulation(data):
 
     # velx0, vely0, velz0 = launch_velocity(Rplanet, launch_lat, SMA=t_o_a, inclination=t_o_i)
     Vpad = ((2 * np.pi * Rplanet) / (24*60*60)) * np.cos(np.deg2rad(launch_lat))
-    velx0 = Vpad
-    vely0 = 0.0
+    # velx0 = Vpad
+    # vely0 = 0.0
+    # velz0 = 0.0
+    # Launch pad velocity due to Earth's rotation: v = ω × r
+    omega_earth = 7.2921159e-5  # Earth rotation rate [rad/s]
+    velx0 = -omega_earth * y0
+    vely0 =  omega_earth * x0
     velz0 = 0.0
 
     Azimuth = np.asin((np.cos(np.deg2rad(t_o_i))) / (np.cos(np.deg2rad(launch_lat))))
     
 
-    stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_prop_stages, m_construction_stages]
-    boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, booster_count]
+    # stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_prop_stages, m_construction_stages, m0]
+    stages_info = [stages_count, t_burn_stages]
+    boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, booster_count, m_construction_each_boosters]
     #######################################################
     # Define all necessary arrays for each stage
     stateinitial_stages = [None] * stages_count
@@ -283,4 +289,4 @@ def run_simulation(data):
 
             massout_boosters[i] = stateout_b_boosters[i][:, 6]
 
-    return tout_stages, massout_stages, stages_count
+    return pass

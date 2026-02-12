@@ -34,7 +34,14 @@ cd_file_path = os.path.join(project_root, 'resources', 'CD-Mach_relation.txt')
 drag_file = np.loadtxt(cd_file_path)
 Mach_ref = drag_file[:, 0]
 Cd_ref = drag_file[:, 1]
-drag_interp = interp1d(Mach_ref, Cd_ref, kind='linear')
+# drag_interp = interp1d(Mach_ref, Cd_ref, kind='linear')
+drag_interp = interp1d(
+    Mach_ref,
+    Cd_ref,
+    kind='linear',
+    bounds_error=False,
+    fill_value=(Cd_ref[0], Cd_ref[-1])
+)
 
 new_Mach = np.linspace(min(Mach_ref), max(Mach_ref), 200)
 new_Cd = drag_interp(new_Mach)
@@ -63,48 +70,35 @@ def gravity(x, y, z):
         accely = 0.0
         accelz = 0.0
     else:
-        accelx = (((G * Mplanet) / r**3) * x) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet * (x / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
-        accely = (((G * Mplanet) / r**3) * y) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet * (y / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
-        accelz = (((G * Mplanet) / r**3) * z) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet * (z / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
+        accelx = - (((G * Mplanet) / r**3) * x) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet**2 * (x / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
+        accely = - (((G * Mplanet) / r**3) * y) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet**2 * (y / (r**5)) * (1 - ((5 * (z**2)) / (r**2))))
+        accelz = - (((G * Mplanet) / r**3) * z) + (3 * J2 * ((G * Mplanet) / 2) * Rplanet**2 * (z / (r**5)) * (3 - ((5 * (z**2)) / (r**2))))
     
     return np.array([accelx, accely, accelz])
 ############################################################################
 
 
 ############################################################################
-def propulsion(t, t_burn, t_vertical, T_mag_stages, m_flow_stages, theta_rad, Az_rad, t_burn_boosters, T_mag_boosters, m_flow_boosters, T_mag_, m_flow_, has_boosters=True):
-    """ Thrust and mass flow rate computation """
+def propulsion(t, t_burn, T_mag_stages, m_flow_stages, t_burn_boosters, T_mag_boosters, m_flow_boosters, T_mag_, m_flow_, has_boosters=True):
+    """ Thrust magnitude and mass flow rate computation """
     if has_boosters:
         if t <= t_burn_boosters:
             T_mag = T_mag_stages[0] + sum(T_mag_boosters)
             m_flow = m_flow_stages[0] + sum(m_flow_boosters)
-
         else:
             T_mag = T_mag_stages[0]
             m_flow = m_flow_stages[0]
-        
     else:
         T_mag = T_mag_
         m_flow = m_flow_
 
-    if t <= t_vertical:
-        thrust_x = 0.0
-        thrust_y = 0.0
-        thrust_z = T_mag
+    if t <= t_burn:
         mdot = - m_flow  # mass flow rate [kg/s]
-    elif t > t_vertical and t < t_burn:
-        thrust_x = T_mag * np.sin(theta_rad) * np.sin(Az_rad)
-        thrust_y = T_mag * np.sin(theta_rad) * np.cos(Az_rad)
-        thrust_z = T_mag * np.cos(theta_rad)
-        mdot = - m_flow 
     else:
-        thrust_x = 0.0
-        thrust_y = 0.0
-        thrust_z = 0.0
+        T_mag = 0.0
         mdot = 0.0
 
-
-    return np.array([thrust_x, thrust_y, thrust_z]), mdot
+    return T_mag, mdot
 
 
 ############################################################################
@@ -138,12 +132,14 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
     mass_flow_stages = stages_info[2]
     m_prop_stages = stages_info[3]
     m_construction_stages = stages_info[4]
+    m0 = stages_info[5]
     
     # Unpack boosters_info
     t_burn_boosters = boosters_info[0]
     T_mag_boosters = boosters_info[1]
     mass_flow_boosters = boosters_info[2]
     boosters_count = boosters_info[3]
+    m_construction_each_boosters = boosters_info[4]
     
     
     # State vector
@@ -154,11 +150,11 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
     vely = state[4]
     velz = state[5]
     if has_boosters:
-        m_remaining_1st_stage = m_construction_stages[0] + (m_prop_stages[0] - mass_flow_stages[0] * t_burn_boosters)
         if t <= t_burn_boosters:
             mass = state[6]
         elif t > t_burn_boosters and t < t_burn_stages[0]:
-            mass = m_remaining_1st_stage
+            # Drop booster dry mass at separation, fuel continues decreasing via integration
+            mass = state[6] - sum(m_construction_each_boosters)
         else:
             mass = m_construction_stages[0]
     else:
@@ -175,6 +171,8 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
 
     # Aerodynamic block
     V = np.sqrt(velx**2 + vely**2 + velz**2)
+    # V_vec = np.array([velx, vely, velz])
+    # V = np.linalg.norm(V_vec)
     rho_alt = density(x, y, z)
     Temp_local = temperature_by_altitude(x, y, z)
     loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
@@ -195,16 +193,47 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
     # Compute the forces
     
     # Gravity force
-    gravityF = - gravity(x, y, z) * mass
+    gravityF = gravity(x, y, z) * mass
     
 
     # Aerodynamic force
     
-    aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
+    if rho_alt < 1e-6:
+        aeroF = np.zeros(3)
+    else:
+        # aeroF = -0.5 * min(rho_alt, 1.293) * Area * Cd * V**2 * (V_vec / V)
+        aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
 
 
-    # Thrust
-    thrustF, mdot = propulsion(t, t_burn, t_vertical, T_mag_stages, mass_flow_stages, theta_rad, Az_rad, t_burn_boosters, T_mag_boosters, mass_flow_boosters,T_mag_, m_flow_, has_boosters)
+
+    # Thrust magnitude and mass flow
+    T_mag, mdot = propulsion(t, t_burn, T_mag_stages, mass_flow_stages, t_burn_boosters, T_mag_boosters, mass_flow_boosters, T_mag_, m_flow_, has_boosters)
+
+    # Compute thrust vector in ECEF using local reference frame
+    if T_mag > 0:
+        r_pos = np.sqrt(x**2 + y**2 + z**2)
+        r_hat = np.array([x, y, z]) / r_pos
+
+        if t <= t_vertical:
+            # Vertical flight — thrust along local vertical (radial direction)
+            thrustF = T_mag * r_hat
+        else:
+            # Gravity turn — thrust at angle theta from local vertical
+            # Build local ENU (East-North-Up) frame
+            k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
+            east_raw = np.cross(k_hat, r_hat)
+            east_norm = np.linalg.norm(east_raw)
+            if east_norm > 1e-10:
+                east_hat = east_raw / east_norm
+            else:
+                east_hat = np.array([1.0, 0.0, 0.0])
+            north_hat = np.cross(r_hat, east_hat)
+
+            thrust_dir = (np.cos(theta_rad) * r_hat +
+                          np.sin(theta_rad) * (np.sin(Az_rad) * east_hat + np.cos(Az_rad) * north_hat))
+            thrustF = T_mag * thrust_dir
+    else:
+        thrustF = np.zeros(3)
 
 
     Forces = gravityF + aeroF + thrustF
@@ -239,30 +268,52 @@ def integration_stop_event(t, state):
 ############################################################################
 
 ############################################################################
-def integration(stateinitial, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, t_burn, T_mag_, m_flow_, has_boosters):
-    max_simulation_time = 3000
-    t_span = (0, max_simulation_time)
+# def integration(stateinitial, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, t_burn, T_mag_, m_flow_, has_boosters):
+#     max_simulation_time = 3000
+#     t_span = (0, max_simulation_time)
 
 
-    fun = lambda t, y: Derivatives(y, t, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters)
+#     fun = lambda t, y: Derivatives(y, t, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters)
 
 
-    stop_event = lambda t, y: integration_stop_event(t, y)
-    stop_event.terminal = True
-    stop_event.direction = -1
+#     stop_event = lambda t, y: integration_stop_event(t, y)
+#     stop_event.terminal = True
+#     stop_event.direction = -1
 
-    sol = solve_ivp(fun, t_span, stateinitial, events=stop_event, method='RK45', rtol=1e-6, max_step=0.5)
+#     sol = solve_ivp(fun, t_span, stateinitial, events=stop_event, method='RK45', rtol=1e-6, max_step=0.5)
 
-    stateout = sol.y.T
-    tout = sol.t
+#     stateout = sol.y.T
+#     tout = sol.t
 
 
-    tout_burn = np.linspace(0, t_burn, 10000)
+#     tout_burn = np.linspace(0, t_burn, 10000)
+#     stateout_burn = odeint(Derivatives, stateinitial, tout_burn, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
+
+#     return tout, stateout, tout_burn, stateout_burn
+
+
+def integration(stateinitial, tout, tout_burn, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, t_burn, T_mag_, m_flow_, has_boosters):
+    stages_count = stages_info[0]
+    t_burn_stages = stages_info[1]
+    simulation_time = 3000
+
+    for  i in range(stages_count):
+        if i == 0:
+            tout = np.linspace(0, simulation_time, 10000)
+        else:
+            tout = np.linspace(t_burn_stages[i-1], simulation_time, 10000)
+
+    for i in range(stages_count):
+        if i == 0:
+            tout_burn = np.linspace(0, t_burn_stages[i], 10000)
+        else:
+            tout_burn = np.linspace(t_burn_stages[i-1], t_burn_stages[i], 10000)
+
+
+    stateout = odeint(Derivatives, stateinitial, tout, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
     stateout_burn = odeint(Derivatives, stateinitial, tout_burn, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
 
     return tout, stateout, tout_burn, stateout_burn
-
-
 ############################################################################
 
 
