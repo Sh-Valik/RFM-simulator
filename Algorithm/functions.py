@@ -127,20 +127,14 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
     """ Computes the state derivatives """
 
     # Unpack stages_info
-    t_burn_stages = stages_info[0]
+    
     T_mag_stages = stages_info[1]
     mass_flow_stages = stages_info[2]
-    m_prop_stages = stages_info[3]
-    m_construction_stages = stages_info[4]
-    m0 = stages_info[5]
     
     # Unpack boosters_info
     t_burn_boosters = boosters_info[0]
     T_mag_boosters = boosters_info[1]
     mass_flow_boosters = boosters_info[2]
-    boosters_count = boosters_info[3]
-    m_construction_each_boosters = boosters_info[4]
-    
     
     # State vector
     x = state[0]
@@ -149,20 +143,10 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
     velx = state[3]
     vely = state[4]
     velz = state[5]
-    if has_boosters:
-        if t <= t_burn_boosters:
-            mass = state[6]
-        elif t > t_burn_boosters and t < t_burn_stages[0]:
-            # Drop booster dry mass at separation, fuel continues decreasing via integration
-            mass = state[6] - sum(m_construction_each_boosters)
-        else:
-            mass = m_construction_stages[0]
+    if t <= t_burn:
+        mass = state[6]
     else:
-        if t <= t_burn:
-            mass = state[6]
-        else:
-            mass = m_construction
-
+        mass = m_construction
 
     # compute xdot, ydot and zdot
     xdot = velx
@@ -171,8 +155,6 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
 
     # Aerodynamic block
     V = np.sqrt(velx**2 + vely**2 + velz**2)
-    # V_vec = np.array([velx, vely, velz])
-    # V = np.linalg.norm(V_vec)
     rho_alt = density(x, y, z)
     Temp_local = temperature_by_altitude(x, y, z)
     loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
@@ -201,7 +183,6 @@ def Derivatives(state, t, stages_info, boosters_info, m_construction, Area_pf, A
     if rho_alt < 1e-6:
         aeroF = np.zeros(3)
     else:
-        # aeroF = -0.5 * min(rho_alt, 1.293) * Area * Cd * V**2 * (V_vec / V)
         aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
 
 
@@ -292,26 +273,44 @@ def integration_stop_event(t, state):
 #     return tout, stateout, tout_burn, stateout_burn
 
 
-def integration(stateinitial, tout, tout_burn, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, t_burn, T_mag_, m_flow_, has_boosters):
-    stages_count = stages_info[0]
-    t_burn_stages = stages_info[1]
+def integration(stateinitial, tout, tout_burn, stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, t_burn, T_mag_, m_flow_, has_boosters, stage_number):
+    t_burn_stages = stages_info[0]
+    t_burn_boosters = boosters_info[0]
+    m_construction_each_boosters = boosters_info[3]
     simulation_time = 3000
 
-    for  i in range(stages_count):
-        if i == 0:
-            tout = np.linspace(0, simulation_time, 10000)
-        else:
-            tout = np.linspace(t_burn_stages[i-1], simulation_time, 10000)
+    if stage_number == 0:
+        time_with_boosters = np.linspace(0, t_burn_boosters, 10000)
+        time_1st_stage_without_boosters = np.linspace(t_burn_boosters, simulation_time, 10000)
+        
+        tout[stage_number] = np.concatenate((time_with_boosters, time_1st_stage_without_boosters))
 
-    for i in range(stages_count):
-        if i == 0:
-            tout_burn = np.linspace(0, t_burn_stages[i], 10000)
-        else:
-            tout_burn = np.linspace(t_burn_stages[i-1], t_burn_stages[i], 10000)
+        tout_burn_without_boosters = np.linspace(t_burn_boosters, t_burn_stages[stage_number], 10000)
+        tout_burn[stage_number] = np.concatenate((time_with_boosters, tout_burn_without_boosters))
 
+        stateout_with_boosters = odeint(Derivatives, stateinitial, time_with_boosters, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
+        
+        last_state_with_boosters = stateout_with_boosters[-1]
+        mass_after_separation = last_state_with_boosters[6] - sum(m_construction_each_boosters)
 
-    stateout = odeint(Derivatives, stateinitial, tout, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
-    stateout_burn = odeint(Derivatives, stateinitial, tout_burn, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
+        state_initial_without_boosters = np.array([
+            last_state_with_boosters[0], last_state_with_boosters[1], last_state_with_boosters[2], # x, y, z
+            last_state_with_boosters[3], last_state_with_boosters[4], last_state_with_boosters[5], # velx, vely, velz
+            mass_after_separation
+        ])
+        stateout_without_boosters = odeint(Derivatives, state_initial_without_boosters, time_1st_stage_without_boosters, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
+        stateout = np.concatenate((stateout_with_boosters, stateout_without_boosters))
+        
+        stateout_burn_without_boosters = odeint(Derivatives, state_initial_without_boosters, tout_burn_without_boosters, args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
+        stateout_burn = np.concatenate((stateout_with_boosters, stateout_burn_without_boosters))
+    else:
+        # tout[stage_number] = np.linspace(t_burn_stages[stage_number-1], simulation_time, 10000)
+        # tout_burn[stage_number] = np.linspace(t_burn_stages[stage_number-1], t_burn_stages[stage_number], 10000)
+        tout[stage_number] = np.linspace(0, simulation_time, 10000)
+        tout_burn[stage_number] = np.linspace(0, t_burn, 10000)
+
+        stateout = odeint(Derivatives, stateinitial, tout[stage_number], args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
+        stateout_burn = odeint(Derivatives, stateinitial, tout_burn[stage_number], args=(stages_info, boosters_info, m_construction, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, theta_rad, Az_rad, T_mag_, m_flow_, t_burn, has_boosters,))
 
     return tout, stateout, tout_burn, stateout_burn
 ############################################################################

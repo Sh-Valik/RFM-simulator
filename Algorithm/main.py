@@ -100,8 +100,8 @@ def run_simulation(data):
     
 
     # stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_prop_stages, m_construction_stages, m0]
-    stages_info = [stages_count, t_burn_stages]
-    boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, booster_count, m_construction_each_boosters]
+    stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages]
+    boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters]
     #######################################################
     # Define all necessary arrays for each stage
     stateinitial_stages = [None] * stages_count
@@ -166,7 +166,7 @@ def run_simulation(data):
             if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0[i]])
                 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], tout_stages, tout_b_stages, stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters, stage_number=i)
 
                 xout_stages[i] = stateout_stages[i][:, 0]
                 yout_stages[i] = stateout_stages[i][:, 1]
@@ -191,7 +191,7 @@ def run_simulation(data):
             else:
                 stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0[i]])
 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], tout_stages, tout_b_stages, stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False, stage_number=i)
 
                 xout_stages[i] = stateout_stages[i][:, 0]
                 yout_stages[i] = stateout_stages[i][:, 1]
@@ -216,7 +216,7 @@ def run_simulation(data):
             if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_stages[i]])
                 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], tout_stages, tout_b_stages, stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False, stage_number=i)
 
                 xout_stages[i] = stateout_stages[i][:, 0]
                 yout_stages[i] = stateout_stages[i][:, 1]
@@ -241,7 +241,7 @@ def run_simulation(data):
             else:
                 stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0_stages[i]])
 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration(stateinitial_stages[i], tout_stages, tout_b_stages, stages_info, boosters_info, m_construction_stages[i], stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_stages[i], T_mag_stages[i], mass_flow_stages[i], has_boosters=False, stage_number=i)
 
                 xout_stages[i] = stateout_stages[i][:, 0]
                 yout_stages[i] = stateout_stages[i][:, 1]
@@ -267,7 +267,7 @@ def run_simulation(data):
         for i in range(booster_count):
             stateinitial_boosters[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_each_boosters[i]])
 
-            tout_boosters[i], stateout_boosters[i], tout_b_boosters[i], stateout_b_boosters[i] = integration(stateinitial_boosters[i], stages_info, boosters_info, m_construction_each_boosters[i], boosters_area_pf[i], boosters_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_boosters, T_mag_boosters[i], mass_flow_boosters[i], has_boosters=False)
+            tout_boosters[i], stateout_boosters[i], tout_b_boosters[i], stateout_b_boosters[i] = integration(stateinitial_boosters[i], tout_stages, tout_b_stages, stages_info, boosters_info, m_construction_each_boosters[i], boosters_area_pf[i], boosters_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, theta, Azimuth, t_burn_boosters, T_mag_boosters[i], mass_flow_boosters[i], has_boosters=False, stage_number=i)
             
             xout_boosters[i] = stateout_boosters[i][:, 0]
             yout_boosters[i] = stateout_boosters[i][:, 1]
@@ -289,4 +289,8 @@ def run_simulation(data):
 
             massout_boosters[i] = stateout_b_boosters[i][:, 6]
 
-    return pass
+    
+    
+    stages_return = [tout_stages, massout_stages, m0_stages, t_burn_stages, m_prop_stages, m_construction_stages]
+    boosters_return = [tout_boosters, massout_boosters, m0, t_burn_boosters, m_prop_each_boosters, m_construction_each_boosters]
+    return stages_return, boosters_return
