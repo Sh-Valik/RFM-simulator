@@ -35,37 +35,44 @@ DEFAULT_DATA = {
     "orbit_a": 26571.0, "orbit_e": 0.0, "orbit_i": 55.0
 }
 
-stages_return, boosters_return = run_simulation(DEFAULT_DATA)
+stages_return, boosters_return, orbit_info = run_simulation(DEFAULT_DATA)
 
-tout_stages, massout_stages, m0_stages, t_burn_stages, m_prop_stages, m_construction_stages = stages_return
-tout_boosters, massout_boosters, m0, t_burn_boosters, m_prop_each_boosters, m_construction_each_boosters = boosters_return
+# tout_stages, massout_stages, m0_stages, t_burn_stages, m_prop_stages, m_construction_stages = stages_return
+# tout_boosters, massout_boosters, m0, t_burn_boosters, m_prop_each_boosters, m_construction_each_boosters = boosters_return
 
-print(f'mo_stages: {m0_stages}')
-print(f't_burn_stages: {t_burn_stages}')
-print(f'm_prop_stages: {m_prop_stages}')
-print(f'm_construction_stages: {m_construction_stages}')
-
-
-print(f'm0: {m0}')
-print(f't_burn_boosters: {t_burn_boosters}')
-print(f'm_prop_each_boosters: {m_prop_each_boosters}')
-print(f'm_construction_each_boosters: {m_construction_each_boosters}')
+# print(f'mo_stages: {m0_stages}')
+# print(f't_burn_stages: {t_burn_stages}')
+# print(f'm_prop_stages: {m_prop_stages}')
+# print(f'm_construction_stages: {m_construction_stages}')
 
 
+# print(f'm0: {m0}')
+# print(f't_burn_boosters: {t_burn_boosters}')
+# print(f'm_prop_each_boosters: {m_prop_each_boosters}')
+# print(f'm_construction_each_boosters: {m_construction_each_boosters}')
 
 
 
+# tout_stages[0] = np.array(tout_stages[0])
+# tout_stages[1] = np.array(tout_stages[1])
+# # plt.figure()
+
+# for i in range(len(tout_stages)):
+#     plt.plot(tout_stages[i], massout_stages[i], label=f"Mass of stage{i+1}")
+
+# plt.grid()
+# plt.legend()
 
 
+# plt.figure()
+
+# for i in range(len(tout_boosters)):
+#     plt.plot(tout_boosters[i], massout_boosters[i], label=f"Mass of boostes{i+1}")
+
+# plt.grid()
+# plt.legend()
+
+# plt.show()
 
 
-line_type = ['b-', 'c-', 'g-', 'r-', 'm-', 'y-']
-plt.figure()
-
-for i in range(len(tout_stages)):
-    plt.plot(tout_stages[i], massout_stages[i], line_type[i], label=f"Mass of stage{i+1}")
-    # plt.plot(tout_boosters[i], massout_boosters[i], line_type[i+3], label=f"Mass of boostes{i+1}")
-
-plt.grid()
-plt.legend()
-plt.show()
+print(f'orbit_info: {orbit_info}')
