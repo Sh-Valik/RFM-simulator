@@ -90,9 +90,13 @@ def run_simulation(data):
     # vely0 =  omega_earth * x0
     velz0 = 0.0
 
-    Azimuth, velx0, vely0 = compute_corrected_Azimuth(launch_lat, t_o_i, t_o_a)
+    Azimuth, Vpad = compute_corrected_Azimuth(launch_lat, t_o_i, t_o_a)
+    # Pad velocity from Earth rotation: v = ω × r
+    omega_earth = 7.2921159e-5  # rad/s
+    velx0 = -omega_earth * y0
+    vely0 =  omega_earth * x0
 
-    kick_angle_deg = 15 # placeholder, need to be changed
+    kick_angle_deg = 34.71 # placeholder, need to be changed
     
     
 
@@ -216,7 +220,7 @@ def run_simulation(data):
             xout_b_boosters[i], yout_b_boosters[i], zout_b_boosters[i], velxout_b_boosters[i], velyout_b_boosters[i], velzout_b_boosters[i], _ = extract_results(stateout_b_boosters[i])
 
     stages_return = [tout_stages, massout_stages, xout_stages, yout_stages, zout_stages]
-    # boosters_return = [tout_boosters, massout_boosters]
+    boosters_return = [tout_boosters, massout_boosters, xout_boosters, yout_boosters, zout_boosters]
 
 
 
@@ -224,7 +228,7 @@ def run_simulation(data):
 
 
     # Convert final state to orbital elements
-    orbitl_state = stateout_stages[-1][-1]  # Final state from the last stage
+    orbitl_state = stateout_b_stages[-1][-1]  # State at end of propelled flight (after circularization)
 
     JD_launch = utc_to_julian_date(launch_date, launch_time)
 
@@ -234,4 +238,4 @@ def run_simulation(data):
 
     orbital_elements = cartesian_to_keplerian(state_j2000)
     
-    return stages_return, orbital_elements
+    return stages_return, boosters_return, orbital_elements

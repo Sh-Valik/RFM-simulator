@@ -35,11 +35,11 @@ DEFAULT_DATA = {
     "orbit_a": 26571.0, "orbit_e": 0.0, "orbit_i": 55.0
 }
 
-stages_return, orbital_elements = run_simulation(DEFAULT_DATA)
+stages_return, boosters_return, orbital_elements = run_simulation(DEFAULT_DATA)
 print("Orbital elements:", orbital_elements)
 
 tout_stages, massout_stages, xout_stages, yout_stages, zout_stages = stages_return
-# tout_boosters, massout_boosters = boosters_return
+tout_boosters, massout_boosters, xout_boosters, yout_boosters, zout_boosters = boosters_return
 
 
 
@@ -54,29 +54,43 @@ tout_stages, massout_stages, xout_stages, yout_stages, zout_stages = stages_retu
 # plt.legend()
 # plt.show()
 
+plt.figure()
+
+for i in range(len(tout_boosters)):
+    plt.plot(tout_boosters[i], massout_boosters[i], label=f"Mass of booster{i+1}")
+
+plt.grid()
+plt.legend()
+plt.show()
+
+
 G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
 g0 = 9.80665  # standard gravitational acceleration [m/s^2]
 Rplanet = 6371000  # mean radius of the Earth [m]
 Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
 
 
-# # plt.figure()
-# fig = plt.figure('3D trajectory')
-# ax = fig.add_subplot(111, projection = '3d')
-# u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
-# x_sphere = Rplanet * np.cos(u) * np.sin(v_)
-# y_sphere = Rplanet * np.sin(u) * np.sin(v_)
-# z_sphere = Rplanet * np.cos(v_)
-# ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
-# ax.set_box_aspect([1, 1, 1])
+# plt.figure()
+fig = plt.figure('3D trajectory')
+ax = fig.add_subplot(111, projection = '3d')
+u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
+x_sphere = Rplanet * np.cos(u) * np.sin(v_)
+y_sphere = Rplanet * np.sin(u) * np.sin(v_)
+z_sphere = Rplanet * np.cos(v_)
+ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
+ax.set_box_aspect([1, 1, 1])
 
-# for i in range(len(tout_stages)):
-#     ax.plot(tout_stages[i],  xout_stages[i], yout_stages[i], zout_stages[i], label=f"Position of stage{i+1}")
-    
-# ax.axis('equal')
-# ax.set_box_aspect([1, 1, 1])
-# ax.legend()
-# plt.show()
+for i in range(len(tout_stages)):
+    ax.plot(xout_stages[i], yout_stages[i], zout_stages[i], label=f"Position of stage{i+1}")
+for i in range(len(tout_boosters)):
+    ax.plot(xout_boosters[i], yout_boosters[i], zout_boosters[i], label=f"Position of booster{i+1}")
+ax.axis('equal')
+ax.set_box_aspect([1, 1, 1])
+ax.legend()
+plt.show()
+
+
+
 
 
 

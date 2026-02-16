@@ -191,11 +191,29 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
         
 
         else:
-            # Phase 3: True gravity turn — thrust along velocity vector
-            if V > 1e-6:
-                thrust_dir = v_vec / V
+            # Phase 3: Pitch program below atmosphere, gravity turn above
+            altitude = r_pos - 6371000.0  # approximate altitude
+            k_hat = np.array([0.0, 0.0, 1.0])
+            east_raw = np.cross(k_hat, r_hat)
+            east_norm = np.linalg.norm(east_raw)
+            if east_norm > 1e-10:
+                east_hat = east_raw / east_norm
             else:
-                thrust_dir = r_hat
+                east_hat = np.array([1.0, 0.0, 0.0])
+            north_hat = np.cross(r_hat, east_hat)
+
+            if altitude < 80000.0:
+                # Below atmosphere: fixed pitch at kick angle from local vertical
+                thrust_dir = (np.cos(kick_angle) * r_hat +
+                              np.sin(kick_angle) * (
+                                  np.sin(Az_rad) * east_hat +
+                                  np.cos(Az_rad) * north_hat))
+            else:
+                # Above atmosphere: true gravity turn (follow velocity vector)
+                if V > 1e-6:
+                    thrust_dir = v_vec / V
+                else:
+                    thrust_dir = r_hat
             thrustF = T_mag * thrust_dir
     else:
         thrustF = np.zeros(3)
@@ -316,11 +334,27 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
         
 
         else:
-            # Phase 3: True gravity turn — thrust along velocity vector
-            if V > 1e-6:
-                thrust_dir = v_vec / V
+            # Phase 3: Pitch program below atmosphere, gravity turn above
+            altitude = r_pos - 6371000.0
+            k_hat_local = np.array([0.0, 0.0, 1.0])
+            east_raw = np.cross(k_hat_local, r_hat)
+            east_norm = np.linalg.norm(east_raw)
+            if east_norm > 1e-10:
+                east_hat = east_raw / east_norm
             else:
-                thrust_dir = r_hat
+                east_hat = np.array([1.0, 0.0, 0.0])
+            north_hat = np.cross(r_hat, east_hat)
+
+            if altitude < 80000.0:
+                thrust_dir = (np.cos(kick_angle) * r_hat +
+                              np.sin(kick_angle) * (
+                                  np.sin(Az_rad) * east_hat +
+                                  np.cos(Az_rad) * north_hat))
+            else:
+                if V > 1e-6:
+                    thrust_dir = v_vec / V
+                else:
+                    thrust_dir = r_hat
             thrustF = T_mag * thrust_dir
     else:
         thrustF = np.zeros(3)
@@ -505,11 +539,27 @@ def Derivatives_boosters(state, t, t_burn_boosters, T_mag_boosters, mass_flow_bo
         
 
         else:
-            # Phase 3: True gravity turn — thrust along velocity vector
-            if V > 1e-6:
-                thrust_dir = v_vec / V
+            # Phase 3: Pitch program below atmosphere, gravity turn above
+            altitude = r_pos - 6371000.0
+            k_hat_local = np.array([0.0, 0.0, 1.0])
+            east_raw = np.cross(k_hat_local, r_hat)
+            east_norm = np.linalg.norm(east_raw)
+            if east_norm > 1e-10:
+                east_hat = east_raw / east_norm
             else:
-                thrust_dir = r_hat
+                east_hat = np.array([1.0, 0.0, 0.0])
+            north_hat = np.cross(r_hat, east_hat)
+
+            if altitude < 80000.0:
+                thrust_dir = (np.cos(kick_angle) * r_hat +
+                              np.sin(kick_angle) * (
+                                  np.sin(Az_rad) * east_hat +
+                                  np.cos(Az_rad) * north_hat))
+            else:
+                if V > 1e-6:
+                    thrust_dir = v_vec / V
+                else:
+                    thrust_dir = r_hat
             thrustF = T_mag * thrust_dir
     else:
         thrustF = np.zeros(3)
@@ -579,50 +629,95 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         stateout = np.concatenate((stateout_propelled, stateout_balistic))
 
     elif stage_index == stages_count - 1:
-        # Step 1. Propelled flight using 80% of propellant mass. Reserve 20% of the fuel for a circularization burn at apogee for achieving a cirular target orbit
-        fuel_reserve_fraction = 0.000002 # 20%
-        t_burn_main = t_burn_stages[stage_index] * (1 - fuel_reserve_fraction)
-        t_start = sum(t_burn_stages[:stage_index])
-        t_end_main = t_start + t_burn_main
-
-        tout_propelled_main = np.linspace(t_start, t_end_main, 10000)
-
-        stateout_propelled_main = odeint(Derivatives_propelled, stateinitial, tout_propelled_main, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg,))
+        # Last stage: partial ascent burn, coast to apogee, circularize
+        fuel_reserve_fraction = 0.06534  # 6.534% of fuel reserved for circularization
         
-
-        # Step 2. Coasting to apogee
-        state_coast_start = stateout_propelled_main[-1].copy()
-        time_coast = np.linspace(t_end_main, simulation_time, 10000)
-        stateout_coast_full = odeint(Derivatives_balistic, state_coast_start, time_coast, args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
-
-        # Step 3. Find apogee
-        r_sq = stateout_coast_full[:, 0]**2 + stateout_coast_full[:, 1]**2 + stateout_coast_full[:, 2]**2
-        inx_apogee = np.argmax(r_sq)
-        tout_coast = time_coast[:inx_apogee+1]
-        stateout_coast = stateout_coast_full[:inx_apogee+1]
-
-        # Step 4. Circularization burn at apogee using the remaining 20% of the fuel
-        state_apogee = stateout_coast[-1].copy()
-        time_at_apogee = tout_coast[-1]
-
-        t_burn_circularization = t_burn_stages[stage_index] * fuel_reserve_fraction
-        tout_circularization = np.linspace(time_at_apogee, time_at_apogee + t_burn_circularization, 10000)
-
-        stateout_circularization = odeint(Derivatives_propelled, state_apogee, tout_circularization, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg,))
-
-        # Step 5. Coasting after circularization burn
-        state_orbit = stateout_circularization[-1].copy()
-        time_for_orbital_flight = np.linspace(tout_circularization[-1], simulation_time, 10000)
-
-        stateout_orbit = odeint(Derivatives_balistic, state_orbit, time_for_orbital_flight, args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
+        t_burn_stages_info = stages_info[0]
+        mass_flow_stages = stages_info[2]
+        m_construction_stages = stages_info[3]
         
+        m_fuel_total = stateinitial[6] - m_construction_stages[stage_index]
+        m_fuel_ascent = m_fuel_total * (1.0 - fuel_reserve_fraction)
+        m_fuel_circ = m_fuel_total * fuel_reserve_fraction
         
-        # Combine results
-        tout = np.concatenate((tout_propelled_main, tout_coast, tout_circularization, time_for_orbital_flight))
-        stateout = np.concatenate((stateout_propelled_main, stateout_coast, stateout_circularization, stateout_orbit))
-
-        tout_propelled = np.concatenate((tout_propelled_main, tout_circularization))
-        stateout_propelled = np.concatenate((stateout_propelled_main, stateout_circularization))
+        # Ascent burn time (only burn the ascent fuel fraction)
+        t_burn_ascent = m_fuel_ascent / mass_flow_stages[stage_index]
+        
+        t_start = sum(t_burn_stages_info[:stage_index])
+        t_end_ascent = t_start + t_burn_ascent
+        t_end_full = t_start + t_burn_stages_info[stage_index]
+        
+        # --- Phase 1: Ascent burn (gravity turn) ---
+        # Temporarily increase construction mass to stop burn early
+        original_m_construction = m_construction_stages[stage_index]
+        m_construction_stages[stage_index] = original_m_construction + m_fuel_circ
+        
+        tout_ascent = np.linspace(t_start, t_end_ascent, 10000)
+        stateout_ascent = odeint(Derivatives_propelled, stateinitial, tout_ascent,
+                                 args=(stages_info, boosters_info, Area_pf, Area_bf,
+                                       Cd_of_crosflow_cylinder, t_vertical, Az_rad,
+                                       stage_index, kick_angle_deg,))
+        
+        # Restore original construction mass for circularization
+        m_construction_stages[stage_index] = original_m_construction
+        
+        # --- Phase 2: Coast to apogee ---
+        state_after_ascent = stateout_ascent[-1].copy()
+        
+        # Coast for a long time to find apogee
+        coast_duration = 10000.0  # seconds max coast
+        tout_coast = np.linspace(t_end_ascent, t_end_ascent + coast_duration, 20000)
+        stateout_coast = odeint(Derivatives_balistic, state_after_ascent, tout_coast,
+                                args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
+        
+        # Find apogee: where radial velocity changes sign (positive to negative)
+        r_dot = np.array([np.dot(stateout_coast[j, :3], stateout_coast[j, 3:6]) /
+                          np.linalg.norm(stateout_coast[j, :3])
+                          for j in range(len(stateout_coast))])
+        
+        # Find first zero-crossing (positive to negative = apogee)
+        apogee_idx = None
+        for j in range(1, len(r_dot)):
+            if r_dot[j-1] > 0 and r_dot[j] <= 0:
+                apogee_idx = j
+                break
+        
+        if apogee_idx is None:
+            # No apogee found (escape trajectory or already descending)
+            # Just use end of coast
+            apogee_idx = len(stateout_coast) - 1
+        
+        # Trim coast to apogee
+        tout_coast_to_apogee = tout_coast[:apogee_idx+1]
+        stateout_coast_to_apogee = stateout_coast[:apogee_idx+1]
+        
+        # --- Phase 3: Circularization burn at apogee ---
+        state_at_apogee = stateout_coast_to_apogee[-1].copy()
+        t_apogee = tout_coast_to_apogee[-1]
+        
+        # Burn time for remaining fuel
+        t_burn_circ = m_fuel_circ / mass_flow_stages[stage_index]
+        tout_circ = np.linspace(t_apogee, t_apogee + t_burn_circ, 5000)
+        
+        # Use Derivatives_propelled for circularization — above 80km it thrusts prograde
+        stateout_circ = odeint(Derivatives_propelled, state_at_apogee, tout_circ,
+                               args=(stages_info, boosters_info, Area_pf, Area_bf,
+                                     Cd_of_crosflow_cylinder, t_vertical, Az_rad,
+                                     stage_index, kick_angle_deg,))
+        
+        # --- Phase 4: Coast after circularization ---
+        state_after_circ = stateout_circ[-1].copy()
+        t_end_circ = tout_circ[-1]
+        tout_final_coast = np.linspace(t_end_circ, simulation_time, 5000)
+        stateout_final_coast = odeint(Derivatives_balistic, state_after_circ, tout_final_coast,
+                                       args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
+        
+        # Concatenate all phases
+        tout_propelled = np.concatenate((tout_ascent, tout_circ))
+        stateout_propelled = np.concatenate((stateout_ascent, stateout_circ))
+        
+        tout = np.concatenate((tout_ascent, tout_coast_to_apogee, tout_circ, tout_final_coast))
+        stateout = np.concatenate((stateout_ascent, stateout_coast_to_apogee, stateout_circ, stateout_final_coast))
     else:
         t_start = sum(t_burn_stages[:stage_index])
         t_end = t_start + t_burn_stages[stage_index]
@@ -655,20 +750,19 @@ def integration_boosters(stateinitial, tout, t_burn_boosters, T_mag_boosters, ma
 ##############################################################################
 
 def compute_corrected_Azimuth(launch_lat, t_o_i, t_o_a):
-    t_o_a = t_o_a * 1000
-    t_day = 24*60*60 # [s]
-    
+    t_o_a = t_o_a * 1000  # km -> m
+    t_day = 24*60*60  # [s]
 
     V_orb = np.sqrt(G * Mplanet / t_o_a)
 
-    Vpad = ((2 * np.pi * Rplanet) / (t_day)) * np.cos(np.deg2rad(launch_lat))
-    Azimuth = np.asin((np.cos(np.deg2rad(t_o_i))) / (np.cos(np.deg2rad(launch_lat))))
+    Vpad = ((2 * np.pi * Rplanet) / t_day) * np.cos(np.deg2rad(launch_lat))
+    Azimuth = np.arcsin(np.cos(np.deg2rad(t_o_i)) / np.cos(np.deg2rad(launch_lat)))
 
     VL_north = V_orb * np.cos(Azimuth)
     VL_east = V_orb * np.sin(Azimuth) - Vpad
-    corrected_Azimuth = np.arctan(VL_east / VL_north)
-    
-    return corrected_Azimuth, VL_north, VL_east
+    corrected_Azimuth = np.arctan2(VL_east, VL_north)
+
+    return corrected_Azimuth, Vpad
 
 def utc_to_julian_date(launch_date, launch_time):
     date_parts = launch_date.split("-")
@@ -758,7 +852,8 @@ def cartesian_to_keplerian(state):
     n = np.linalg.norm(n_vec)
     
     # Eccentricity vector
-    e_vec = (np.cross(v_vec, h_vec) / mu) - (r_vec / r)
+    # e_vec = (np.cross(v_vec, h_vec) / mu) - (r_vec / r)
+    e_vec = 1 / mu * (np.cross(v_vec, h_vec) - mu * r_vec / r)
     e = np.linalg.norm(e_vec)
     
     # Specific orbital energy
@@ -766,7 +861,8 @@ def cartesian_to_keplerian(state):
     
     # Semi-major axis
     if abs(1 - e) > 1e-10:  # not parabolic
-        a = -mu / (2 * epsilon)
+        # a = (-mu / (2 * epsilon)) / 1000
+        a = ((2 / r) - (v**2 / mu))**(-1) / 1000
     else:
         a = np.inf
     
