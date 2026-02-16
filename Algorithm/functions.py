@@ -1,7 +1,9 @@
 import numpy as np
+from dataclasses import dataclass, field
+from typing import List, Optional
 from scipy.interpolate import interp1d
-from scipy.optimize import brentq
-from scipy.integrate import solve_ivp, odeint
+from scipy.optimize import brentq, minimize_scalar
+from scipy.integrate import solve_ivp
 import os
 import streamlit as st
 import plotly.express as px
@@ -34,7 +36,6 @@ cd_file_path = os.path.join(project_root, 'resources', 'CD-Mach_relation.txt')
 drag_file = np.loadtxt(cd_file_path)
 Mach_ref = drag_file[:, 0]
 Cd_ref = drag_file[:, 1]
-# drag_interp = interp1d(Mach_ref, Cd_ref, kind='linear')
 drag_interp = interp1d(
     Mach_ref,
     Cd_ref,
@@ -247,11 +248,11 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
     ydot = vely
     zdot = velz
 
-    # Aerodynamic block
+    # ---- Aerodynamics ----
     V = np.sqrt(velx**2 + vely**2 + velz**2)
     rho_alt = density(x, y, z)
     Temp_local = temperature_by_altitude(x, y, z)
-    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
+    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)
     Mach = V / loc_sound_speed
     
     # Area
@@ -261,8 +262,8 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
     apogee_reached = v_radial < 0
 
     if apogee_reached:
-        Area = Area_bf
-        Cd = Cd_of_crosflow_cylinder
+        Area = stage.Area_bf
+        Cd = config.Cd_crossflow
     else:
         Area = Area_pf
         Cd = float(drag_interp(Mach))
@@ -271,10 +272,8 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
     
     # Gravity force
     gravityF = gravity(x, y, z) * mass
-    
 
-    # Aerodynamic force
-    
+    # Aerodynamic drag force
     if rho_alt < 1e-6:
         aeroF = np.zeros(3)
     else:
@@ -325,7 +324,7 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
     else:
         thrustF = np.zeros(3)
 
-
+    # ---- Total forces & acceleration ----
     Forces = gravityF + aeroF + thrustF
 
     # q = q_dynamic_pressure(min(rho_alt, 1.293), V)
@@ -336,7 +335,8 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
     else:
         vdot = np.zeros(3)
         mdot = 0.0
-    
+
+    return np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
 
     statedot = np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
     return statedot
@@ -813,6 +813,105 @@ def cartesian_to_keplerian(state):
         'nu': nu
     }
 ############################################################################
+# ======================= KICK ANGLE OPTIMIZATION =======================
+############################################################################
+
+def find_kick_angle(run_sim_func, data, a_target_m, e_target=0.0, mu=G * Mplanet):
+    """
+    Find the optimal kick angle to achieve the target orbit (SMA + eccentricity).
+    
+    Uses scipy.optimize.minimize_scalar to minimize a combined objective:
+      error = (a_achieved - a_target)^2 / a_target^2 + w_e * (e_achieved - e_target)^2
+    
+    The final orbit is taken from orbit_info['keplerian'] which reflects
+    the post-circularization state (after two-burn approach).
+    
+    Parameters
+    ----------
+    run_sim_func : callable
+        The run_simulation function (returns 3-tuple)
+    data : dict
+        Simulation input data
+    a_target_m : float
+        Target semi-major axis [m]
+    e_target : float
+        Target eccentricity (0 for circular)
+    mu : float
+        Gravitational parameter [m^3/s^2]
+    
+    Returns
+    -------
+    dict with keys:
+        'kick_angle_deg' : optimal kick angle [degrees]
+        'a_achieved' : achieved SMA [m]
+        'e_achieved' : achieved eccentricity
+        'i_achieved_deg' : achieved inclination [deg]
+        'optimization_result' : full scipy result
+    """
+    w_e = 100.0  # weight for eccentricity in objective
+    
+    def objective(kick_angle_deg):
+        data_trial = data.copy()
+        data_trial['kick_angle'] = kick_angle_deg
+        
+        try:
+            _, _, orbit_info = run_sim_func(data_trial)
+            kep = orbit_info['keplerian']
+            
+            a = kep['a']
+            e = kep['e']
+            i_deg = np.degrees(kep['i'])
+            
+            # Normalized SMA error + eccentricity penalty
+            sma_err = ((a - a_target_m) / a_target_m) ** 2
+            ecc_err = (e - e_target) ** 2
+            
+            error = sma_err + w_e * ecc_err
+            print(f"  kick={kick_angle_deg:.4f} deg -> SMA={a/1000:.0f} km, e={e:.4f}, i={i_deg:.1f} deg, err={error:.2e}")
+            return error
+        except Exception as ex:
+            print(f"  Kick angle {kick_angle_deg:.3f} deg failed: {ex}")
+            return 1e20
+    
+    print("Optimizing kick angle...")
+    result = minimize_scalar(
+        objective,
+        bounds=(0.01, 30.0),
+        method='bounded',
+        options={'xatol': 1e-3, 'maxiter': 50}
+    )
+    
+    kick_opt = result.x
+    
+    # Run final simulation with optimal kick angle
+    data_final = data.copy()
+    data_final['kick_angle'] = kick_opt
+    _, _, orbit_info = run_sim_func(data_final)
+    kep = orbit_info['keplerian']
+    
+    a_achieved = kep['a']
+    e_achieved = kep['e']
+    i_achieved = np.degrees(kep['i'])
+    
+    print(f"\nOptimal kick angle: {kick_opt:.4f} deg")
+    print(f"Target SMA:   {a_target_m/1000:.1f} km  |  Achieved: {a_achieved/1000:.1f} km")
+    print(f"Target e:     {e_target:.4f}      |  Achieved: {e_achieved:.4f}")
+    print(f"Inclination:  {i_achieved:.2f} deg")
+    
+    return {
+        'kick_angle_deg': kick_opt,
+        'a_achieved': a_achieved,
+        'e_achieved': e_achieved,
+        'i_achieved_deg': i_achieved,
+        'optimization_result': result,
+    }
+
+
+############################################################################
+############################################################################
+# ======================= COORDINATE CONVERSION =======================
+############################################################################
+
 def geodetic_to_cartesian_WGS84(latitude_deg, longitude_deg, altitude):
     latitude = np.deg2rad(latitude_deg)
     longitude = np.deg2rad(longitude_deg)
@@ -828,6 +927,9 @@ def geodetic_to_cartesian_WGS84(latitude_deg, longitude_deg, altitude):
     return x, y, z
 ############################################################################
 
+
+############################################################################
+# ======================= ROCKET PARAMETER CALCULATIONS =======================
 ############################################################################
 def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count):
     """Return Ve, mass_flow, m0, m_prop, Vf_id, Lambda for each stage depending on input mode and rocket type"""

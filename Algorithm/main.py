@@ -15,9 +15,6 @@ def run_simulation(data):
     m_payload_without_boosters = data["payload_mass_without_booster"]
     m_payload_with_boosters = data["payload_mass_with_booster"]
 
-    # theta_angle_deg = data["theta_angle"]
-    # theta_angle = np.radians(theta_angle_deg)
-
     stages_count = data["stages_count"]
     has_boosters = data["has_boosters"]
     booster_count = data["booster_count"]
@@ -45,8 +42,8 @@ def run_simulation(data):
     launch_lat = data["launch_lat"]
     launch_lon = data["launch_lon"]
     launch_alt = data["launch_alt"]
-    launch_date = data["launch_date"]
-    launch_time = data["launch_time"]
+    launch_date_str = data["launch_date"]
+    launch_time_str = data["launch_time"]
 
     t_o_a = data["orbit_a"]
     t_o_e = data["orbit_e"]
@@ -56,13 +53,13 @@ def run_simulation(data):
     #######################################################
 
     # Cross-sectional areas
-    stages_area_pf = [np.pi * (diameter_stages[i]**2) / 4 for i in range(stages_count)] # pf - propelled flight
-    stages_area_bf = [diameter_stages[i] * height_stages[i] for i in range(stages_count)] # bf - ballistic flight
+    stages_area_pf = [np.pi * (diameter_stages[i]**2) / 4 for i in range(stages_count)]
+    stages_area_bf = [diameter_stages[i] * height_stages[i] for i in range(stages_count)]
     
     boosters_area_pf = [np.pi * (diameter_boosters[i]**2) / 4 for i in range(booster_count)]
     boosters_area_bf = [diameter_boosters[i] * height_boosters[i] for i in range(booster_count)]
 
-    Cd_of_crosflow_cylinder = 1.25 # for stages and boosters in ballistic flight
+    Cd_of_crosflow_cylinder = 1.25
     #######################################################
     
     # Burn time
@@ -100,64 +97,23 @@ def run_simulation(data):
     stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_construction_stages]
     boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters]
     #######################################################
-    # Define all necessary arrays for each stage
-    stateinitial_stages = [None] * stages_count
-    q_stages = [None] * stages_count
-
     tout_stages = [None] * stages_count
-    stateout_stages = [None] * stages_count
-    tout_b_stages = [None] * stages_count
-    stateout_b_stages = [None] * stages_count
-
-    xout_stages = [None] * stages_count
-    yout_stages = [None] * stages_count
-    zout_stages = [None] * stages_count
-
-    xout_b_stages = [None] * stages_count
-    yout_b_stages = [None] * stages_count
-    zout_b_stages = [None] * stages_count
-
-    velxout_stages = [None] * stages_count
-    velyout_stages = [None] * stages_count
-    velzout_stages = [None] * stages_count
-    velmag_stages = [None] * stages_count
-
-    velxout_b_stages = [None] * stages_count
-    velyout_b_stages = [None] * stages_count
-    velzout_b_stages = [None] * stages_count
-
     massout_stages = [None] * stages_count
-    
-    # Define all necessary arrays for each booster
+    velmag_stages = [None] * stages_count
+    stage_results = [None] * stages_count
+    burnout_states = [None] * stages_count  # burnout state for each stage
+
+    # Initial state for the first stage
     if has_boosters:
-        stateinitial_boosters = [None] * booster_count
-        q_boosters = [None] * booster_count
+        initial_mass = m0[0]  # m0 from parameters_of_boosters (includes booster mass)
+    else:
+        initial_mass = m0_stages[0]
 
-        tout_boosters = [None] * booster_count
-        stateout_boosters = [None] * booster_count
-        tout_b_boosters = [None] * booster_count
-        stateout_b_boosters = [None] * booster_count
+    state = np.array([x0, y0, z0, velx0, vely0, velz0, initial_mass])
 
-        xout_boosters = [None] * booster_count
-        yout_boosters = [None] * booster_count
-        zout_boosters = [None] * booster_count
+    two_burn_result = None  # will be set for last stage
+    fuel_reserve_fraction = data.get('fuel_reserve_fraction', 0.20)
 
-        xout_b_boosters = [None] * booster_count
-        yout_b_boosters = [None] * booster_count
-        zout_b_boosters = [None] * booster_count
-
-        velxout_boosters = [None] * booster_count
-        velyout_boosters = [None] * booster_count
-        velzout_boosters = [None] * booster_count
-        velmag_boosters = [None] * booster_count
-
-        velxout_b_boosters = [None] * booster_count
-        velyout_b_boosters = [None] * booster_count
-        velzout_b_boosters = [None] * booster_count
-
-        massout_boosters = [None] * booster_count
-
-#######################################################
     for i in range(stages_count):
         if has_boosters:
             if i == 0:
