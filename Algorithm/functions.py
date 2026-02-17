@@ -89,12 +89,14 @@ def density(x, y, z):
     return rho
 ############################################################################
 
+
 ############################################################################
 def q_dynamic_pressure(rho, V):
     """Dynamic pressure computation"""
     q = 0.5 * rho * abs(V)**2
     return q
 ############################################################################
+
 
 ############################################################################
 def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg):
@@ -157,8 +159,6 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
     else:
         aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
 
-
-
     # Thrust magnitude and mass flow
 
     T_mag = T_mag_stages[stage_index] + sum(T_mag_boosters)
@@ -172,24 +172,6 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
         if t <= t_vertical:
             # Vertical flight — thrust along local vertical (radial direction)
             thrustF = T_mag * r_hat
-        # elif t > t_vertical and t <= t_vertical + 1e-3:
-        #     k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
-        #     east_raw = np.cross(k_hat, r_hat)
-        #     east_norm = np.linalg.norm(east_raw)
-        #     if east_norm > 1e-10:
-        #         east_hat = east_raw / east_norm
-        #     else:
-        #         east_hat = np.array([1.0, 0.0, 0.0])
-        #     north_hat = np.cross(r_hat, east_hat)
-
-        #     # Kick: small angle from vertical in the azimuth direction
-        #     thrust_dir = (np.cos(kick_angle) * r_hat +
-        #                   np.sin(kick_angle) * (
-        #                       np.sin(Az_rad) * east_hat +
-        #                       np.cos(Az_rad) * north_hat))
-        #     thrustF = T_mag * thrust_dir
-        
-
         else:
             # Phase 3: Pitch program below atmosphere, gravity turn above
             altitude = r_pos - 6371000.0  # approximate altitude
@@ -232,7 +214,10 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
 
     statedot = np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
     return statedot
+############################################################################
 
+
+############################################################################
 def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg):
     """ Computes the state derivatives for stages onhly"""
     kick_angle = np.deg2rad(kick_angle_deg)
@@ -315,24 +300,6 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
         if t <= t_vertical:
             # Vertical flight — thrust along local vertical (radial direction)
             thrustF = T_mag * r_hat
-        # elif t > t_vertical and t <= t_vertical + 1e-3:
-        #     k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
-        #     east_raw = np.cross(k_hat, r_hat)
-        #     east_norm = np.linalg.norm(east_raw)
-        #     if east_norm > 1e-10:
-        #         east_hat = east_raw / east_norm
-        #     else:
-        #         east_hat = np.array([1.0, 0.0, 0.0])
-        #     north_hat = np.cross(r_hat, east_hat)
-
-        #     # Kick: small angle from vertical in the azimuth direction
-        #     thrust_dir = (np.cos(kick_angle) * r_hat +
-        #                   np.sin(kick_angle) * (
-        #                       np.sin(Az_rad) * east_hat +
-        #                       np.cos(Az_rad) * north_hat))
-        #     thrustF = T_mag * thrust_dir
-        
-
         else:
             # Phase 3: Pitch program below atmosphere, gravity turn above
             altitude = r_pos - 6371000.0
@@ -362,7 +329,6 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
 
     Forces = gravityF + aeroF + thrustF
 
-    # q = q_dynamic_pressure(min(rho_alt, 1.293), V)
     #--------------------------------------------    
     # Compute the resulting acceleration
     if mass > 0:
@@ -374,7 +340,10 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
 
     statedot = np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
     return statedot
+############################################################################
 
+
+############################################################################
 def Derivatives_balistic(state, t, Area_pf, Area_bf, Cd_of_crosflow_cylinder):
     """ Computes the state derivatives for stages onhly"""
      
@@ -443,141 +412,10 @@ def Derivatives_balistic(state, t, Area_pf, Area_bf, Cd_of_crosflow_cylinder):
 
     statedot = np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
     return statedot
-
+############################################################################
 
 
 ############################################################################
-def Derivatives_boosters(state, t, t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg):
-    
-    kick_angle = np.deg2rad(kick_angle_deg)
-    x = state[0]
-    y = state[1]
-    z = state[2]
-    velx = state[3]
-    vely = state[4]
-    velz = state[5]
-    if t <= t_burn_boosters:
-        mass = state[6]
-    else:
-        mass = m_construction_each_boosters
-
-    # compute xdot, ydot and zdot
-    xdot = velx
-    ydot = vely
-    zdot = velz
-
-    # Aerodynamic block
-    V = np.sqrt(velx**2 + vely**2 + velz**2)
-    rho_alt = density(x, y, z)
-    Temp_local = temperature_by_altitude(x, y, z)
-    loc_sound_speed = np.sqrt(1.4 * 287.05 * Temp_local)  # speed of sound [m/s] = sqrt(R * gamma * local temperature)
-    Mach = V / loc_sound_speed
-    
-    # Area
-    r_vec = np.array([x, y, z])
-    v_vec = np.array([velx, vely, velz])
-    v_radial = np.dot(r_vec, v_vec) / np.linalg.norm(r_vec)
-    apogee_reached = v_radial < 0
-
-    if apogee_reached:
-        Area = Area_bf
-        Cd = Cd_of_crosflow_cylinder
-    else:
-        Area = Area_pf
-        Cd = float(drag_interp(Mach))
-    
-    # Compute the forces
-    
-    # Gravity force
-    gravityF = gravity(x, y, z) * mass
-    
-
-    # Aerodynamic force
-    
-    if rho_alt < 1e-6:
-        aeroF = np.zeros(3)
-    else:
-        aeroF = -0.5 * min(rho_alt, 1.293) * Area * abs(V) * Cd * np.array([velx, vely, velz]) # Aerodynamic drag force
-
-
-
-    # Thrust magnitude and mass flow
-    T_mag = 0.0
-    mdot = 0.0
-
-    if t <= t_burn_boosters:
-        T_mag = T_mag_boosters
-        mdot = -mass_flow_boosters
-    else:
-        T_mag = 0.0
-        mdot = 0.0
-
-    # Compute thrust vector in ECEF using local reference frame
-    if T_mag > 0:
-        r_pos = np.sqrt(x**2 + y**2 + z**2)
-        r_hat = np.array([x, y, z]) / r_pos
-
-        if t <= t_vertical:
-            # Vertical flight — thrust along local vertical (radial direction)
-            thrustF = T_mag * r_hat
-        elif t > t_vertical and t <= t_vertical + 1e-3:
-            k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
-            east_raw = np.cross(k_hat, r_hat)
-            east_norm = np.linalg.norm(east_raw)
-            if east_norm > 1e-10:
-                east_hat = east_raw / east_norm
-            else:
-                east_hat = np.array([1.0, 0.0, 0.0])
-            north_hat = np.cross(r_hat, east_hat)
-
-            # Kick: small angle from vertical in the azimuth direction
-            thrust_dir = (np.cos(kick_angle) * r_hat +
-                          np.sin(kick_angle) * (
-                              np.sin(Az_rad) * east_hat +
-                              np.cos(Az_rad) * north_hat))
-            thrustF = T_mag * thrust_dir
-        
-
-        else:
-            # Phase 3: Pitch program below atmosphere, gravity turn above
-            altitude = r_pos - 6371000.0
-            k_hat_local = np.array([0.0, 0.0, 1.0])
-            east_raw = np.cross(k_hat_local, r_hat)
-            east_norm = np.linalg.norm(east_raw)
-            if east_norm > 1e-10:
-                east_hat = east_raw / east_norm
-            else:
-                east_hat = np.array([1.0, 0.0, 0.0])
-            north_hat = np.cross(r_hat, east_hat)
-
-            if altitude < 80000.0:
-                thrust_dir = (np.cos(kick_angle) * r_hat +
-                              np.sin(kick_angle) * (
-                                  np.sin(Az_rad) * east_hat +
-                                  np.cos(Az_rad) * north_hat))
-            else:
-                if V > 1e-6:
-                    thrust_dir = v_vec / V
-                else:
-                    thrust_dir = r_hat
-            thrustF = T_mag * thrust_dir
-    else:
-        thrustF = np.zeros(3)
-
-
-    Forces = gravityF + aeroF + thrustF
-
-    if mass > 0:
-        vdot = Forces / mass
-    else:
-        vdot = np.zeros(3)
-        mdot = 0.0
-    
-
-    statedot = np.array([xdot, ydot, zdot, vdot[0], vdot[1], vdot[2], mdot])
-    return statedot
-
-
 def extract_results(stateout):
     x = stateout[:, 0]
     y = stateout[:, 1]
@@ -588,9 +426,10 @@ def extract_results(stateout):
     mass = stateout[:, 6]
 
     return x, y, z, velx, vely, velz, mass
-
 ############################################################################
 
+
+############################################################################
 def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg, stages_count, rocket_has_boosters):
     t_burn_stages = stages_info[0]
     t_burn_boosters = boosters_info[0]
@@ -737,18 +576,30 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
     return tout, stateout, tout_propelled, stateout_propelled
 ##############################################################################
 
-def integration_boosters(stateinitial, tout, t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg):
-    simulation_time = 3000
-    tout = np.linspace(0, simulation_time, 10000)
-    stateout = odeint(Derivatives_boosters, stateinitial, tout, args=(t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg))
 
+############################################################################
+def integration_boosters(stateinitial, tout, stages_info, boosters_info, t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg):
+    simulation_time = 3000
     tout_burn = np.linspace(0, t_burn_boosters, 10000)
-    stateout_burn = odeint(Derivatives_boosters, stateinitial, tout_burn, args=(t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg))
+    stateout_burn = odeint(Derivatives_with_boosters, stateinitial, tout_burn, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, 0, kick_angle_deg,))
+
+    time_boosters_balistic = np.linspace(t_burn_boosters, simulation_time, 10000)
+    state_initial_boosters_balistic = stateout_burn[-1].copy()
+    state_initial_boosters_balistic[6] = m_construction_each_boosters
+
+    stateout_boosters_balistic = odeint(Derivatives_balistic, state_initial_boosters_balistic, time_boosters_balistic, args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
+    
+    stateout = np.concatenate((stateout_burn, stateout_boosters_balistic))
+    tout = np.concatenate((tout_burn, time_boosters_balistic))
 
     return tout, stateout, tout_burn, stateout_burn
+############################################################################
 
 ##############################################################################
-
+##############################################################################
+##############################################################################
+##############################################################################
+##############################################################################
 def compute_corrected_Azimuth(launch_lat, t_o_i, t_o_a):
     t_o_a = t_o_a * 1000  # km -> m
     t_day = 24*60*60  # [s]
@@ -763,7 +614,9 @@ def compute_corrected_Azimuth(launch_lat, t_o_i, t_o_a):
     corrected_Azimuth = np.arctan2(VL_east, VL_north)
 
     return corrected_Azimuth, Vpad
+############################################################################
 
+############################################################################
 def utc_to_julian_date(launch_date, launch_time):
     date_parts = launch_date.split("-")
     time_parts = launch_time.split(":")
@@ -790,7 +643,9 @@ def utc_to_julian_date(launch_date, launch_time):
     JD = int(365.25 * (year_prim + 4716)) + int(30.6001 * (month_prim + 1)) + Df + B - 1524.5
 
     return JD
+############################################################################
 
+############################################################################
 def compute_gmst(jd_utc):
     
     JD_J2000 = 2451545.0  # Julian Date of J2000 epoch
@@ -808,7 +663,10 @@ def compute_gmst(jd_utc):
     theta_GMST_deg = theta_GMST_deg % 360.0
     
     return np.deg2rad(theta_GMST_deg)
+############################################################################
 
+
+############################################################################
 def eci_greenwich_to_j2000(state, gmst_rad):
     cos_g = np.cos(gmst_rad)
     sin_g = np.sin(gmst_rad)
@@ -830,7 +688,10 @@ def eci_greenwich_to_j2000(state, gmst_rad):
         result = np.append(result, state[6:])
     
     return result
+############################################################################
 
+
+############################################################################
 def cartesian_to_keplerian(state):
     """
     Convert Cartesian state vector to Keplerian orbital elements.
@@ -909,6 +770,9 @@ def cartesian_to_keplerian(state):
         'nu': nu
     }
 ############################################################################
+
+
+############################################################################
 def geodetic_to_cartesian_WGS84(latitude_deg, longitude_deg, altitude):
     latitude = np.deg2rad(latitude_deg)
     longitude = np.deg2rad(longitude_deg)
@@ -923,6 +787,7 @@ def geodetic_to_cartesian_WGS84(latitude_deg, longitude_deg, altitude):
 
     return x, y, z
 ############################################################################
+
 
 ############################################################################
 def parameters_of_stages(input_mode, data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count):
@@ -1005,8 +870,6 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
         new_m0_stages[0] = m0_stages[0] + delta_m_payload + sum(m0_each_boosters)
 
         return Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
-
-
 ############################################################################
 
 
@@ -1043,7 +906,8 @@ def optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_witho
     
     return m0, m_prop, Vf_id, Lambda
 ############################################################################
-      
+
+
 ############################################################################
 def non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_without_boosters, stages_count):
     lambda_of_non_optimal_rocket = payload_mass_ratio_total**(1 / stages_count)
@@ -1074,6 +938,7 @@ def non_optimal_rocket_parameters(eps, payload_mass_ratio_total, Ve, m_payload_w
     return m0, m_prop, Vf_id, Lambda
 ############################################################################
 
+
 ############################################################################
 def calculate_optimal_mu(lambda_total, eps_list, Ve_list):
     """Calculate the optimal mu for given lambda_total, eps_list, and Ve_list."""
@@ -1102,7 +967,7 @@ def calculate_optimal_mu(lambda_total, eps_list, Ve_list):
 ############################################################################
 
 
-
+############################################################################
 ############################################################################
 ############################################################################
 # Functions for Result Page

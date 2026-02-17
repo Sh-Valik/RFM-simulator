@@ -213,7 +213,7 @@ def run_simulation(data):
         for i in range(booster_count):
             stateinitial_boosters[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_each_boosters[i]])
 
-            tout_boosters[i], stateout_boosters[i], tout_b_boosters[i], stateout_b_boosters[i] = integration_boosters(stateinitial_boosters[i], tout_boosters[i], t_burn_boosters, T_mag_boosters[i], mass_flow_boosters[i], m_construction_each_boosters[i], boosters_area_pf[i], boosters_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, kick_angle_deg=kick_angle_deg)
+            tout_boosters[i], stateout_boosters[i], tout_b_boosters[i], stateout_b_boosters[i] = integration_boosters(stateinitial_boosters[i], tout_boosters[i], stages_info, boosters_info, t_burn_boosters, T_mag_boosters[i], mass_flow_boosters[i], m_construction_each_boosters[i], boosters_area_pf[i], boosters_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, kick_angle_deg=kick_angle_deg)
             
             xout_boosters[i], yout_boosters[i], zout_boosters[i], velxout_boosters[i], velyout_boosters[i], velzout_boosters[i], massout_boosters[i] = extract_results(stateout_boosters[i])
 
