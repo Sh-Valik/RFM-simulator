@@ -169,32 +169,52 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
         r_pos = np.sqrt(x**2 + y**2 + z**2)
         r_hat = np.array([x, y, z]) / r_pos
 
-        # Gravity turn: плавный переход от вертикали к kick_angle, затем к prograde
-        k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
-        east_raw = np.cross(k_hat, r_hat)
-        east_norm = np.linalg.norm(east_raw)
-        if east_norm > 1e-10:
-            east_hat = east_raw / east_norm
-        else:
-            east_hat = np.array([1.0, 0.0, 0.0])
-        north_hat = np.cross(r_hat, east_hat)
-
-        t_kick = t_vertical + 30.0  # длительность перехода (секунд)
         if t <= t_vertical:
-            thrust_dir = r_hat
-        elif t_vertical < t <= t_kick:
-            frac = (t - t_vertical) / (t_kick - t_vertical)
-            kick = kick_angle * frac
-            thrust_dir = (np.cos(np.deg2rad(kick)) * r_hat +
-                          np.sin(np.deg2rad(kick)) * (
-                              np.sin(Az_rad) * east_hat +
-                              np.cos(Az_rad) * north_hat))
+            # Vertical flight — thrust along local vertical (radial direction)
+            thrustF = T_mag * r_hat
+        # elif t > t_vertical and t <= t_vertical + 1e-3:
+        #     k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
+        #     east_raw = np.cross(k_hat, r_hat)
+        #     east_norm = np.linalg.norm(east_raw)
+        #     if east_norm > 1e-10:
+        #         east_hat = east_raw / east_norm
+        #     else:
+        #         east_hat = np.array([1.0, 0.0, 0.0])
+        #     north_hat = np.cross(r_hat, east_hat)
+
+        #     # Kick: small angle from vertical in the azimuth direction
+        #     thrust_dir = (np.cos(kick_angle) * r_hat +
+        #                   np.sin(kick_angle) * (
+        #                       np.sin(Az_rad) * east_hat +
+        #                       np.cos(Az_rad) * north_hat))
+        #     thrustF = T_mag * thrust_dir
+        
+
         else:
-            if V > 1e-6:
-                thrust_dir = v_vec / V
+            # Phase 3: Pitch program below atmosphere, gravity turn above
+            altitude = r_pos - 6371000.0  # approximate altitude
+            k_hat = np.array([0.0, 0.0, 1.0])
+            east_raw = np.cross(k_hat, r_hat)
+            east_norm = np.linalg.norm(east_raw)
+            if east_norm > 1e-10:
+                east_hat = east_raw / east_norm
             else:
-                thrust_dir = r_hat
-        thrustF = T_mag * thrust_dir
+                east_hat = np.array([1.0, 0.0, 0.0])
+            north_hat = np.cross(r_hat, east_hat)
+
+            if altitude < 80000.0:
+                # Below atmosphere: fixed pitch at kick angle from local vertical
+                thrust_dir = (np.cos(kick_angle) * r_hat +
+                              np.sin(kick_angle) * (
+                                  np.sin(Az_rad) * east_hat +
+                                  np.cos(Az_rad) * north_hat))
+            else:
+                # Above atmosphere: true gravity turn (follow velocity vector)
+                if V > 1e-6:
+                    thrust_dir = v_vec / V
+                else:
+                    thrust_dir = r_hat
+            thrustF = T_mag * thrust_dir
     else:
         thrustF = np.zeros(3)
 
@@ -292,34 +312,50 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
         r_pos = np.sqrt(x**2 + y**2 + z**2)
         r_hat = np.array([x, y, z]) / r_pos
 
-        # Gravity turn: плавный переход от вертикали к kick_angle, затем к prograde
-        k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
-        east_raw = np.cross(k_hat, r_hat)
-        east_norm = np.linalg.norm(east_raw)
-        if east_norm > 1e-10:
-            east_hat = east_raw / east_norm
-        else:
-            east_hat = np.array([1.0, 0.0, 0.0])
-        north_hat = np.cross(r_hat, east_hat)
-
-        # Плавный переход: 0...t_vertical — вертикально, t_vertical...t_kick — плавно к kick_angle, далее — prograde
-        t_kick = t_vertical + 1.0  # длительность перехода (секунд)
         if t <= t_vertical:
-            thrust_dir = r_hat
-        elif t_vertical < t <= t_kick:
-            frac = (t - t_vertical) / (t_kick - t_vertical)
-            # Плавный переход от вертикали к kick_angle
-            kick = kick_angle * frac
-            thrust_dir = (np.cos(np.deg2rad(kick)) * r_hat +
-                          np.sin(np.deg2rad(kick)) * (
-                              np.sin(Az_rad) * east_hat +
-                              np.cos(Az_rad) * north_hat))
+            # Vertical flight — thrust along local vertical (radial direction)
+            thrustF = T_mag * r_hat
+        # elif t > t_vertical and t <= t_vertical + 1e-3:
+        #     k_hat = np.array([0.0, 0.0, 1.0])  # Earth's rotation axis
+        #     east_raw = np.cross(k_hat, r_hat)
+        #     east_norm = np.linalg.norm(east_raw)
+        #     if east_norm > 1e-10:
+        #         east_hat = east_raw / east_norm
+        #     else:
+        #         east_hat = np.array([1.0, 0.0, 0.0])
+        #     north_hat = np.cross(r_hat, east_hat)
+
+        #     # Kick: small angle from vertical in the azimuth direction
+        #     thrust_dir = (np.cos(kick_angle) * r_hat +
+        #                   np.sin(kick_angle) * (
+        #                       np.sin(Az_rad) * east_hat +
+        #                       np.cos(Az_rad) * north_hat))
+        #     thrustF = T_mag * thrust_dir
+        
+
         else:
-            if V > 1e-6:
-                thrust_dir = v_vec / V
+            # Phase 3: Pitch program below atmosphere, gravity turn above
+            altitude = r_pos - 6371000.0
+            k_hat_local = np.array([0.0, 0.0, 1.0])
+            east_raw = np.cross(k_hat_local, r_hat)
+            east_norm = np.linalg.norm(east_raw)
+            if east_norm > 1e-10:
+                east_hat = east_raw / east_norm
             else:
-                thrust_dir = r_hat
-        thrustF = T_mag * thrust_dir
+                east_hat = np.array([1.0, 0.0, 0.0])
+            north_hat = np.cross(r_hat, east_hat)
+
+            if altitude < 95000.0:
+                thrust_dir = (np.cos(kick_angle) * r_hat +
+                              np.sin(kick_angle) * (
+                                  np.sin(Az_rad) * east_hat +
+                                  np.cos(Az_rad) * north_hat))
+            else:
+                if V > 1e-6:
+                    thrust_dir = v_vec / V
+                else:
+                    thrust_dir = r_hat
+            thrustF = T_mag * thrust_dir
     else:
         thrustF = np.zeros(3)
 
@@ -555,7 +591,7 @@ def extract_results(stateout):
 
 ############################################################################
 
-def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg, stages_count, rocket_has_boosters, target_sma_km=None):
+def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg, stages_count, rocket_has_boosters):
     t_burn_stages = stages_info[0]
     t_burn_boosters = boosters_info[0]
     simulation_time = 200000
@@ -594,42 +630,13 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
 
     elif stage_index == stages_count - 1:
         # Last stage: partial ascent burn, coast to apogee, circularize
-        Ve_last = stages_info[4][stage_index]
-        m_fuel_total = stages_info[5][stage_index]
-        m0_last = stages_info[6][stage_index]
-        m_dry_last = m0_last - m_fuel_total
-        if target_sma_km is not None and target_sma_km > 0:
-            fuel_reserve_fraction = compute_fuel_reserve_fraction(
-                target_sma_km,
-                Ve_last,
-                m_dry_last,
-                m_fuel_total
-            )
-            print(f"Computed fuel reserve fraction for circularization: {fuel_reserve_fraction:.4f} to achieve target SMA of {target_sma_km} км")
-        else:
-            print("Warning: target_sma_km not provided or invalid, using default 0.06")
-            fuel_reserve_fraction = 0.06
+        fuel_reserve_fraction = 0.06534  # 6.534% of fuel reserved for circularization
         
         t_burn_stages_info = stages_info[0]
         mass_flow_stages = stages_info[2]
         m_construction_stages = stages_info[3]
-        Ve_last = stages_info[4][stage_index]
-        m_fuel_total = stages_info[5][stage_index]
-        m0_last = stages_info[6][stage_index]
-        m_dry_last = m0_last - m_fuel_total
         
-        
-        # if target_sma_km is not None and target_sma_km > 0:
-        #     fuel_reserve_fraction = compute_fuel_reserve_fraction(
-        #         target_sma_km,
-        #         Ve_last,
-        #         m_dry_last,
-        #         m_fuel_total
-        #     )
-        #     print(f"Computed fuel reserve fraction for circularization: {fuel_reserve_fraction:.4f} to achieve target SMA of {target_sma_km} km")
-        # else:
-        #     print("Warning: target_sma_km not provided or invalid")
-
+        m_fuel_total = stateinitial[6] - m_construction_stages[stage_index]
         m_fuel_ascent = m_fuel_total * (1.0 - fuel_reserve_fraction)
         m_fuel_circ = m_fuel_total * fuel_reserve_fraction
         
@@ -642,7 +649,7 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         
         # --- Phase 1: Ascent burn (gravity turn) ---
         # Temporarily increase construction mass to stop burn early
-        original_m_construction = m0_last - m_fuel_total
+        original_m_construction = m_construction_stages[stage_index]
         m_construction_stages[stage_index] = original_m_construction + m_fuel_circ
         
         tout_ascent = np.linspace(t_start, t_end_ascent, 10000)
@@ -657,9 +664,8 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         # --- Phase 2: Coast to apogee ---
         state_after_ascent = stateout_ascent[-1].copy()
         
-        
         # Coast for a long time to find apogee
-        coast_duration = 20000.0  # seconds max coast
+        coast_duration = 10000.0  # seconds max coast
         tout_coast = np.linspace(t_end_ascent, t_end_ascent + coast_duration, 20000)
         stateout_coast = odeint(Derivatives_balistic, state_after_ascent, tout_coast,
                                 args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
@@ -730,54 +736,6 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
 
     return tout, stateout, tout_propelled, stateout_propelled
 ##############################################################################
-
-
-def compute_fuel_reserve_fraction(target_sma_km, Ve_last_stage, m_dry_last, m_fuel_total,
-                                   perigee_alt_km=200.0):
-    """
-    Compute the fraction of last-stage propellant to reserve for the
-    circularisation burn at apogee.
-
-    Uses a Hohmann-transfer approximation:
-      • perigee of transfer orbit  ≈ perigee_alt_km above surface
-      • apogee  = target_sma_km (treated as circular-orbit radius, NOT altitude)
-
-
-    m_dry_last = m_construction_last + m_payload_last
-
-    Returns a value in [0, 1].
-    """
-    mu = G * Mplanet
-    r_p = Rplanet + perigee_alt_km * 1e3          # perigee radius [m]
-    r_a = target_sma_km * 1e3                      # target orbit radius [m]
-
-    if r_a <= r_p:
-        # Already at or inside the target orbit — no reserve needed
-        return 0.0
-
-    # Circular velocity at target orbit
-    v_circ = np.sqrt(mu / r_a)
-
-    # Velocity at apogee of Hohmann transfer
-    a_transfer = (r_p + r_a) / 2.0
-    v_apogee   = np.sqrt(mu * (2.0 / r_a - 1.0 / a_transfer))
-
-    delta_v_circ = v_circ - v_apogee
-    if delta_v_circ <= 0:
-        return 0.0
-
-    # From Tsiolkovsky:  ΔV = Ve * ln((m_const + m_circ) / m_const)
-    # → m_circ = m_const * (exp(ΔV / Ve) - 1)
-    m_fuel_circ = m_dry_last * (np.exp(delta_v_circ / Ve_last_stage) - 1.0)
-    fraction    = m_fuel_circ / m_fuel_total
-
-    return fraction
-
-
-
-
-
-
 
 def integration_boosters(stateinitial, tout, t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg):
     simulation_time = 3000
@@ -864,15 +822,8 @@ def eci_greenwich_to_j2000(state, gmst_rad):
     vx_j2000 = state[3] * cos_g + state[4] * sin_g
     vy_j2000 = -state[3] * sin_g + state[4] * cos_g
     vz_j2000 = state[5]
-    # Account for Earth's rotation when converting velocities from ECEF to inertial (J2000).
-    # v_inertial = R * v_ecef + Omega x r_inertial
-    omega_earth = 7.2921159e-5  # rad/s
-    r_j2000 = np.array([x_j2000, y_j2000, z_j2000])
-    v_rot = np.array([vx_j2000, vy_j2000, vz_j2000])
-    omega_vec = np.array([0.0, 0.0, omega_earth])
-    v_inertial = v_rot + np.cross(omega_vec, r_j2000)
-
-    result = np.array([x_j2000, y_j2000, z_j2000, v_inertial[0], v_inertial[1], v_inertial[2]])
+    
+    result = np.array([x_j2000, y_j2000, z_j2000, vx_j2000, vy_j2000, vz_j2000])
     
     # Preserve mass if present
     if len(state) > 6:
@@ -1030,9 +981,6 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
         Vf_id_with_boosters = [Ve_stages[i] * np.log(Lambda_with_boosters[i]) for i in range(stage_count - 1)]
 
         Vf_id_first_stage_with_boosters = sum(Vf_id_stages) - sum(Vf_id_with_boosters)
-        Vf_id_rocket_with_boosters = []
-        Vf_id_rocket_with_boosters.append(Vf_id_first_stage_with_boosters)
-        Vf_id_rocket_with_boosters.extend(Vf_id_with_boosters)
 
         phi_first_stage_with_boosters = m_prop_stages[0] / (m0_stages[0] + delta_m_payload)
 
@@ -1056,7 +1004,7 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
 
         new_m0_stages[0] = m0_stages[0] + delta_m_payload + sum(m0_each_boosters)
 
-        return Vf_id_rocket_with_boosters, Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
+        return Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
 
 
 ############################################################################

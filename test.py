@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from Algorithm.main import run_simulation
+from scipy.optimize import minimize
 
 DEFAULT_DATA = {
     # Для автоподбора:
@@ -14,7 +15,9 @@ DEFAULT_DATA = {
     "booster_count": 2,
     "t_burn_ratio": 0.71,
     "payload_mass_ratio_total": 0.005,
-    "t_vertical_flight": 37.6175,
+    # "t_vertical_flight": 37.6175,
+    "t_vertical_flight": 64.994,
+    "kick_angle": 67.7,
     "input_mode": "EPS & lambda",
     "rocket_type": "Optimal",
     "stages_data_mass": [
@@ -38,9 +41,19 @@ DEFAULT_DATA = {
     "orbit_a": 26571.0, "orbit_e": 0.0, "orbit_i": 55.0
 }
 
-stages_return, boosters_return = run_simulation(DEFAULT_DATA)
+stages_return, boosters_return, _ = run_simulation(DEFAULT_DATA)
 tout_stages, massout_stages, xout_stages, yout_stages, zout_stages = stages_return
+# altitude_stages = []
+# for i in range(len(tout_stages)):
+#     current_alt = np.sqrt(xout_stages[i]**2 + yout_stages[i]**2 + zout_stages[i]**2) - 6371000
+#     altitude_stages.append(current_alt)
 
+# plt.figure()
+# for i in range(len(tout_stages)):
+#     plt.plot(tout_stages[i], altitude_stages[i], label=f"Altitude of stage{i+1}")
+# plt.grid()
+# plt.legend()
+# plt.show()
 
 
 # line_type = ['b-', 'c-', 'g-', 'r-', 'm-', 'y-']
@@ -70,18 +83,136 @@ Rplanet = 6371000  # mean radius of the Earth [m]
 Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
 
 
-# fig = plt.figure('3D trajectory')
-# ax = fig.add_subplot(111, projection = '3d')
-# u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
-# x_sphere = Rplanet * np.cos(u) * np.sin(v_)
-# y_sphere = Rplanet * np.sin(u) * np.sin(v_)
-# z_sphere = Rplanet * np.cos(v_)
-# ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
-# ax.set_box_aspect([1, 1, 1])
+fig = plt.figure('3D trajectory')
+ax = fig.add_subplot(111, projection = '3d')
+u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
+x_sphere = Rplanet * np.cos(u) * np.sin(v_)
+y_sphere = Rplanet * np.sin(u) * np.sin(v_)
+z_sphere = Rplanet * np.cos(v_)
+ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
+ax.set_box_aspect([1, 1, 1])
 
-# for i in range(len(tout_stages)):
-#     ax.plot(xout_stages[i], yout_stages[i], zout_stages[i], label=f"Position of stage{i+1}")
-# ax.axis('equal')
-# ax.set_box_aspect([1, 1, 1])
-# ax.legend()
-# plt.show()
+for i in range(len(tout_stages)):
+    ax.plot(xout_stages[i], yout_stages[i], zout_stages[i], label=f"Position of stage{i+1}")
+ax.axis('equal')
+ax.set_box_aspect([1, 1, 1])
+ax.legend()
+plt.show()
+
+
+
+def objective_function(params, data, target_orbit):
+    """
+    Функция стоимости (Cost function). 
+    Оптимизатор вызывает её, меняя params, чтобы вернуть как можно меньшее число.
+    """
+    # 1. Распаковываем параметры, которые подбирает оптимизатор
+    t_vertical_guess, kick_angle_guess = params
+
+    # 2. Обновляем входные данные для симуляции
+    # Мы создаем копию, чтобы не ломать исходный словарь
+    sim_data = data.copy()
+    sim_data["t_vertical_flight"] = t_vertical_guess
+    sim_data["kick_angle"] = kick_angle_guess
+
+    # 3. Запускаем симуляцию
+    # Важно: run_simulation должна возвращать orbital_elements третьим аргументом!
+    try:
+        _, _, orbital_elements = run_simulation(sim_data)
+        
+        # Полученные значения
+        calc_a = orbital_elements['a']  # км
+        calc_e = orbital_elements['e']  # безразмерный
+        calc_i = orbital_elements['i']  # градусы
+
+        # Целевые значения
+        target_a = target_orbit['a']
+        target_e = target_orbit['e']
+        target_i = target_orbit['i']
+
+        # 4. Считаем ошибку (штраф)
+        # Нормализуем веса, так как 'a' измеряется тысячами км, а 'e' — долями единицы.
+        
+        # Штраф за большую полуось (в км)
+        # Если a = inf (парабола/гипербола), даем огромный штраф
+        if np.isinf(calc_a) or calc_a < 0:
+            return 1e9
+
+        error_a = ((calc_a - target_a) / target_a) ** 2  # Относительная квадратичная ошибка
+        
+        # Штраф за эксцентриситет (умножаем на вес, т.к. значение маленькое)
+        error_e = (calc_e - target_e) ** 2 * 1000 
+        
+        # Штраф за наклонение (обычно зависит от азимута, но кик тоже влияет)
+        error_i = (calc_i - target_i) ** 2 * 10 
+
+        total_cost = error_a + error_e + error_i
+        
+        return total_cost
+
+    except Exception as e:
+        # Если симуляция упала (например, ракета врезалась в землю), возвращаем огромный штраф
+        return 1e9
+
+
+def find_optimal_parameters(initial_data):
+    """
+    Основная функция для поиска параметров.
+    """
+    print("Начинаем подбор параметров орбиты...")
+
+    # Целевые параметры орбиты берем из исходного json/словаря
+    target_orbit = {
+        'a': initial_data["orbit_a"], # Ожидается в км
+        'e': initial_data["orbit_e"],
+        'i': initial_data["orbit_i"]
+    }
+
+    # Начальное предположение [t_vertical, kick_angle]
+    # Берем то, что было в конфиге изначально
+    x0 = [initial_data["t_vertical_flight"], 72.0] 
+
+    # Границы поиска (Bounds):
+    # t_vertical: от 1 сек до 30 сек (пример)
+    # kick_angle: от 0 град (вертикально) до 89.9 град (горизонтально)
+    # Примечание: kick_angle обычно отсчитывается от вертикали. 
+    # Если у вас 0 - это горизонт, поменяйте границы.
+    bounds = [(1.0, 50.0), (45.0, 89.0)] 
+
+    # ЗАПУСК ОПТИМИЗАТОРА
+    # Используем метод Nelder-Mead, так как он хорошо работает с негладкими функциями (симуляциями)
+    # или 'L-BFGS-B' если нужны строгие границы.
+    result = minimize(
+        objective_function, 
+        x0, 
+        args=(initial_data, target_orbit),
+        method='Nelder-Mead', 
+        bounds=bounds if 'L-BFGS-B' in ['L-BFGS-B', 'TNC', 'SLSQP'] else None, # Nelder-Mead не всегда поддерживает bounds напрямую через этот интерфейс в старых версиях, но в новых да.
+        tol=1e-4,
+        options={'maxiter': 100, 'disp': True}
+    )
+
+    print("\n--- Результаты оптимизации ---")
+    if result.success:
+        print("Оптимизация успешна!")
+    else:
+        print("Оптимизатор завершил работу (возможно, локальный минимум).")
+
+    best_t_vertical, best_kick_angle = result.x
+    
+    print(f"Оптимальное время вертикального полета: {best_t_vertical:.4f} с")
+    print(f"Оптимальный угол (Kick Angle): {best_kick_angle:.4f} град")
+    print(f"Финальная ошибка (cost): {result.fun:.6f}")
+
+    # Запускаем финальную симуляцию с лучшими параметрами, чтобы получить графики
+    print("\nЗапуск контрольной симуляции...")
+    initial_data["t_vertical_flight"] = best_t_vertical
+    initial_data["kick_angle"] = best_kick_angle
+    
+    stages_res, boosters_res, elements = run_simulation(initial_data)
+    
+    print(f"Полученная орбита:\n SMA (a): {elements['a']:.2f} km\n ECC (e): {elements['e']:.4f}\n INC (i): {elements['i']:.2f} deg")
+
+    return best_t_vertical, best_kick_angle, elements
+
+# best_t, best_angle, final_orbit = find_optimal_parameters(DEFAULT_DATA)
