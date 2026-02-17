@@ -39,7 +39,7 @@ def run_simulation(data):
         stage_data_list = data["stages_data_eps"]
         Ve_stages, mass_flow_stages, diameter_stages, height_stages, m0_stages, m_prop_stages, Vf_id_stages, Lambda_stages = parameters_of_stages(input_mode, stage_data_list, m_payload_without_boosters, payload_mass_ratio_total, rocket_type, stages_count) # Need to be changed due the logic of the algorithm will change slightly
         booster_data_list = data["boosters_data_eps"]
-        Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, m0 = parameters_of_boosters(input_mode, booster_data_list, m_payload_without_boosters, m_payload_with_boosters, Vf_id_stages, m0_stages, m_prop_stages, stages_count, booster_count, Ve_stages, mass_flow_stages, t_burn_ratio)
+        Vf_id_rocket_with_boosters, Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, m0 = parameters_of_boosters(input_mode, booster_data_list, m_payload_without_boosters, m_payload_with_boosters, Vf_id_stages, m0_stages, m_prop_stages, stages_count, booster_count, Ve_stages, mass_flow_stages, t_burn_ratio)
 
 
     launch_lat = data["launch_lat"]
@@ -53,6 +53,10 @@ def run_simulation(data):
     t_o_i = data["orbit_i"]
     # theta = 80 # need to be changed 
     # theta = np.radians(theta) 
+
+
+    print('m0:', m0, 'kg', sum(m0), 'kg')
+
     #######################################################
 
     # Cross-sectional areas
@@ -96,12 +100,12 @@ def run_simulation(data):
     velx0 = -omega_earth * y0
     vely0 =  omega_earth * x0
 
-    kick_angle_deg = 34.71 # placeholder, need to be changed
+    kick_angle_deg = 10.0
     
     
 
     # stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_prop_stages, m_construction_stages, m0]
-    stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_construction_stages]
+    stages_info = [t_burn_stages, T_mag_stages, mass_flow_stages, m_construction_stages, Ve_stages, m_prop_stages, m0]
     boosters_info = [t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters]
     #######################################################
     # Define all necessary arrays for each stage
@@ -167,7 +171,7 @@ def run_simulation(data):
             if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0[i]])
                 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=has_boosters)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=has_boosters, target_sma_km=t_o_a)
 
                 xout_stages[i], yout_stages[i], zout_stages[i], velxout_stages[i], velyout_stages[i], velzout_stages[i], massout_stages[i] = extract_results(stateout_stages[i])
                 velmag_stages[i] = np.sqrt(velxout_stages[i]**2 + velyout_stages[i]**2 + velzout_stages[i]**2)
@@ -177,7 +181,7 @@ def run_simulation(data):
             else:
                 stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0[i]])
 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=False)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=False, target_sma_km=t_o_a)
 
                 xout_stages[i], yout_stages[i], zout_stages[i], velxout_stages[i], velyout_stages[i], velzout_stages[i], massout_stages[i] = extract_results(stateout_stages[i])
 
@@ -188,7 +192,7 @@ def run_simulation(data):
             if i == 0:
                 stateinitial_stages[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_stages[i]])
                 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=False)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=False, target_sma_km=t_o_a)
 
                 xout_stages[i], yout_stages[i], zout_stages[i], velxout_stages[i], velyout_stages[i], velzout_stages[i], massout_stages[i] = extract_results(stateout_stages[i])
 
@@ -199,7 +203,7 @@ def run_simulation(data):
             else:
                 stateinitial_stages[i] = np.array([xout_b_stages[i-1][-1], yout_b_stages[i-1][-1], zout_b_stages[i-1][-1], velxout_b_stages[i-1][-1], velyout_b_stages[i-1][-1], velzout_b_stages[i-1][-1], m0_stages[i]])
 
-                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=False)
+                tout_stages[i], stateout_stages[i], tout_b_stages[i], stateout_b_stages[i] = integration_stages(stateinitial_stages[i], tout_stages[i], stages_info, boosters_info, stages_area_pf[i], stages_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, stage_index=i, kick_angle_deg=kick_angle_deg, stages_count=stages_count, rocket_has_boosters=False, target_sma_km=t_o_a)
 
                 xout_stages[i], yout_stages[i], zout_stages[i], velxout_stages[i], velyout_stages[i], velzout_stages[i], massout_stages[i] = extract_results(stateout_stages[i])
 
@@ -238,4 +242,5 @@ def run_simulation(data):
 
     orbital_elements = cartesian_to_keplerian(state_j2000)
     
-    return stages_return, boosters_return, orbital_elements
+    print(orbital_elements)
+    return stages_return, boosters_return
