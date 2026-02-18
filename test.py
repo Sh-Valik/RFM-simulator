@@ -39,8 +39,62 @@ DEFAULT_DATA = {
     "orbit_a": 26571.0, "orbit_e": 0.0, "orbit_i": 55.0
 }
 
-stages_return, boosters_return, _ = run_simulation(DEFAULT_DATA)
-tout_stages, massout_stages, xout_stages, yout_stages, zout_stages = stages_return
+return_data = run_simulation(DEFAULT_DATA)
+orbital_elements = return_data['orbital_elements']
+trajectories = return_data['trajectories']
+stages_trajectories = trajectories[0]
+boosters_trajectories = trajectories[1]
+rocket_parameters = return_data['rocket_parameters']
+boosters_parameters = rocket_parameters['boosters_parameters']
+t_burn_boosters = boosters_parameters['t_burn_boosters']
+tout_booster = np.linspace(0, 3000, 12000)
+altitude_boosters = return_data['altitude_boosters']
+tout_boosters = return_data['tout_boosters']
+velmag_boosters = return_data['velmag_boosters']
+Rplanet = 6371000
+
+
+tout_stages = return_data['tout_stages'][-1]
+idx1 = np.abs(tout_stages - 262).argmin() # bout 1
+idx2 = np.abs(tout_stages - 10262).argmin() # apogee
+idx3 = np.abs(tout_stages - (10262+6.21)).argmin() # bout 2
+print('idx1', idx1)
+print('idx2', idx2)
+print('idx3', idx3)
+
+
+
+# plt.figure()
+# plt.plot(tout_boosters, velmag_boosters)
+# plt.grid()
+# plt.show()
+
+
+
+# fig = plt.figure('3D trajectory')
+# ax = fig.add_subplot(111, projection = '3d')
+# u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
+# x_sphere = Rplanet * np.cos(u) * np.sin(v_)
+# y_sphere = Rplanet * np.sin(u) * np.sin(v_)
+# z_sphere = Rplanet * np.cos(v_)
+# ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
+# ax.set_box_aspect([1, 1, 1])
+
+# ax.plot(stages_trajectories[3][0], stages_trajectories[4][0], stages_trajectories[5][0], label="Stage 1")
+# ax.plot(boosters_trajectories[3], boosters_trajectories[4], boosters_trajectories[5], label="Boosters")
+
+
+# ax.axis('equal')
+# ax.set_box_aspect([1, 1, 1])
+# ax.legend()
+# plt.show()
+
+
+
+
+
+# tout_stages, massout_stages, xout_stages, yout_stages, zout_stages = stages_return
+
 # altitude_stages = []
 # for i in range(len(tout_stages)):
 #     current_alt = np.sqrt(xout_stages[i]**2 + yout_stages[i]**2 + zout_stages[i]**2) - 6371000
@@ -75,27 +129,27 @@ tout_stages, massout_stages, xout_stages, yout_stages, zout_stages = stages_retu
 # plt.show()
 
 
-G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
-g0 = 9.80665  # standard gravitational acceleration [m/s^2]
-Rplanet = 6371000  # mean radius of the Earth [m]
-Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
+# G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
+# g0 = 9.80665  # standard gravitational acceleration [m/s^2]
+# Rplanet = 6371000  # mean radius of the Earth [m]
+# Mplanet = 5.97219 * 10**24  # mass of the Earth [kg]
 
 
-fig = plt.figure('3D trajectory')
-ax = fig.add_subplot(111, projection = '3d')
-u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
-x_sphere = Rplanet * np.cos(u) * np.sin(v_)
-y_sphere = Rplanet * np.sin(u) * np.sin(v_)
-z_sphere = Rplanet * np.cos(v_)
-ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
-ax.set_box_aspect([1, 1, 1])
+# fig = plt.figure('3D trajectory')
+# ax = fig.add_subplot(111, projection = '3d')
+# u, v_ = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
+# x_sphere = Rplanet * np.cos(u) * np.sin(v_)
+# y_sphere = Rplanet * np.sin(u) * np.sin(v_)
+# z_sphere = Rplanet * np.cos(v_)
+# ax.plot_surface(x_sphere, y_sphere, z_sphere, color = 'lightblue', alpha = 0.3)
+# ax.set_box_aspect([1, 1, 1])
 
-for i in range(len(tout_stages)):
-    ax.plot(xout_stages[i], yout_stages[i], zout_stages[i], label=f"Position of stage{i+1}")
-ax.axis('equal')
-ax.set_box_aspect([1, 1, 1])
-ax.legend()
-plt.show()
+# for i in range(len(tout_stages)):
+#     ax.plot(xout_stages[i], yout_stages[i], zout_stages[i], label=f"Position of stage{i+1}")
+# ax.axis('equal')
+# ax.set_box_aspect([1, 1, 1])
+# ax.legend()
+# plt.show()
 
 
 
@@ -116,7 +170,8 @@ def objective_function(params, data, target_orbit):
     # 3. Запускаем симуляцию
     # Важно: run_simulation должна возвращать orbital_elements третьим аргументом!
     try:
-        _, _, orbital_elements = run_simulation(sim_data)
+        return_data = run_simulation(sim_data)
+        orbital_elements = return_data['orbital_elements']
         
         # Полученные значения
         calc_a = orbital_elements['a']  # км
@@ -207,7 +262,8 @@ def find_optimal_parameters(initial_data):
     initial_data["t_vertical_flight"] = best_t_vertical
     initial_data["theta_angle"] = best_theta_angle
     
-    stages_res, boosters_res, elements = run_simulation(initial_data)
+    return_data = run_simulation(initial_data)
+    elements = return_data['orbital_elements']
     
     print(f"Полученная орбита:\n SMA (a): {elements['a']:.2f} km\n ECC (e): {elements['e']:.4f}\n INC (i): {elements['i']:.2f} deg")
 

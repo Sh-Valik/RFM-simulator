@@ -605,7 +605,7 @@ def integration_boosters(stateinitial, tout, stages_info, boosters_info, t_burn_
 
     time_boosters_balistic = np.linspace(t_burn_boosters, simulation_time, 10000)
     state_initial_boosters_balistic = stateout_burn[-1].copy()
-    state_initial_boosters_balistic[6] = m_construction_each_boosters
+    # state_initial_boosters_balistic[6] = m_construction_each_boosters
 
     stateout_boosters_balistic = odeint(Derivatives_balistic, state_initial_boosters_balistic, time_boosters_balistic, args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
     
@@ -1056,7 +1056,7 @@ def print_output_parameters(rocket_parameters, orbit_parameters, ):
     with col1:
         st.metric(label="Total $\Delta V$", value=f"{round(sum(stages_parameters['Vf_id_rocket_with_boosters']), 2)} m/s", border=True, help="The total $\Delta V$ of the rocket with boosters.")
     with col2:
-        st.metric(label="Total Thrust at Launch (N)", value=f"{round(stages_parameters['T_mag_stages'][0] + sum(boosters_parameters['T_mag_boosters']), 2) / 1000000} MN", delta="Falcon Heavy: 22.82 N", border=True)
+        st.metric(label="Total Thrust at Launch (N)", value=f"{round(stages_parameters['T_mag_stages'][0] + sum(boosters_parameters['T_mag_boosters']), 2) / 1000000} MN", delta="Falcon Heavy: 22.82 MN", border=True)
     
 
     st.write("### Achieved Orbit Parameters")
@@ -1073,7 +1073,7 @@ def print_output_parameters(rocket_parameters, orbit_parameters, ):
     
 
 
-colors = ['blue', 'red', 'green', 'orange', 'purple', 'cyan', 'magenta', 'yellow']
+colors = ['blue', 'green', 'red', 'orange', 'purple', 'cyan', 'magenta', 'yellow']
 
 def plot_Earth():
     R = 6371000  # Earth radius
@@ -1127,21 +1127,44 @@ def plot_3d_orbit(data, stages_count, booster_count):
     yout_b_stages = stages_trajectories[4]
     zout_b_stages = stages_trajectories[5]
 
+    for i in range(stages_count):
+        if i == 0:
+            xout_stages[i] = xout_stages[i][len(xout_b_stages[i]):]
+            yout_stages[i] = yout_stages[i][len(yout_b_stages[i]):]
+            zout_stages[i] = zout_stages[i][len(zout_b_stages[i]):]
+        else:
+            xout_prop_1 = xout_stages[i][:9939]
+            yout_prop_1 = yout_stages[i][:9939]    # from start to bout point. Propelled flight
+            zout_prop_1 = zout_stages[i][:9939]
+
+            xout_coasting = xout_stages[i][9939:29998]
+            yout_coasting = yout_stages[i][9939:29998]   # From bout point coasting to apogee
+            zout_coasting = zout_stages[i][9939:29998]
+
+            xout_prop_2 = xout_stages[i][29998:34471]
+            yout_prop_2 = yout_stages[i][29998:34471]   # From apogee circularization burn
+            zout_prop_2 = zout_stages[i][29998:34471]
+
+            xout_orbital = xout_stages[i][34471:]
+            yout_orbital = yout_stages[i][34471:]   # Orbital flight
+            zout_orbital = zout_stages[i][34471:]
+
     xout_boosters = boosters_trajectories[0]
     yout_boosters = boosters_trajectories[1]
     zout_boosters = boosters_trajectories[2]
     xout_b_boosters = boosters_trajectories[3]
     yout_b_boosters = boosters_trajectories[4]
     zout_b_boosters = boosters_trajectories[5]
+    xout_boosters = xout_boosters[len(xout_b_boosters):]
+    yout_boosters = yout_boosters[len(yout_b_boosters):]
+    zout_boosters = zout_boosters[len(zout_b_boosters):]
+    
 
     stage_visibility = []
-    booster_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
         stage_visibility.append(checked)
-    for j in range(booster_count):
-        checked = st.checkbox(f"Booster {j + 1}", value=True, key=f"booster_{j}")
-        booster_visibility.append(checked)
+    booster_visibility = st.checkbox("Boosters", value=True)
     
 
     # ===== 4. Build figure =====
@@ -1161,46 +1184,89 @@ def plot_3d_orbit(data, stages_count, booster_count):
     # Orbit trajectory
     for i in range(stages_count):
         if stage_visibility[i]:
-            fig.add_trace(go.Scatter3d(
+            if i == stages_count - 1:
+                # 1) Propelled flight
+                fig.add_trace(go.Scatter3d(
+                    x=xout_prop_1,
+                    y=yout_prop_1,
+                    z=zout_prop_1,
+                    mode='lines',
+                    line=dict(width=2, color=colors[3]),
+                    name=f'Stage {i + 1} Propelled flight'
+                ))
+
+                # 2) Coasting
+                fig.add_trace(go.Scatter3d(
+                    x=xout_coasting,
+                    y=yout_coasting,
+                    z=zout_coasting,
+                    mode='lines',
+                    line=dict(width=2, color=colors[1]),
+                    name=f'Stage {i + 1} Ballistic flight to Apogee'
+                ))
+
+                # 3) Propelled flight
+                fig.add_trace(go.Scatter3d(
+                    x=xout_prop_2,
+                    y=yout_prop_2,
+                    z=zout_prop_2,
+                    mode='lines',
+                    line=dict(width=2, color=colors[4]),
+                    name=f'Stage {i + 1} Circularization burn'
+                ))
+
+                # 4) Orbital flight
+                fig.add_trace(go.Scatter3d(
+                    x=xout_orbital,
+                    y=yout_orbital,
+                    z=zout_orbital,
+                    mode='lines',
+                    line=dict(width=2, color=colors[5]),
+                    name=f'Stage {i + 1} Orbital flight'
+                ))
+
+            else:
+                fig.add_trace(go.Scatter3d(
                 x=xout_stages[i],
                 y=yout_stages[i],
                 z=zout_stages[i],
                 mode='lines',
-                line=dict(width=4, color='blue'),
-                name=f'Stage {i + 1} Trajectory'
-            ))
-            fig.add_trace(go.Scatter3d(
-                x=xout_b_stages[i],
-                y=yout_b_stages[i],
-                z=zout_b_stages[i],
-                mode='lines',
-                line=dict(width=2, color='red'),
-                name=f'Stage {i + 1} Burn'
-            ))
-    for j in range(booster_count):
-        if booster_visibility[j]:
-            fig.add_trace(go.Scatter3d(
-                x=xout_boosters[j],
-                y=yout_boosters[j],
-                z=zout_boosters[j],
-                mode='lines',
-                line=dict(width=4, color='green'),
-                name=f'Booster {j + 1} Trajectory'
-            ))
-            fig.add_trace(go.Scatter3d(
-                x=xout_b_boosters[j],
-                y=yout_b_boosters[j],
-                z=zout_b_boosters[j],
-                mode='lines',
-                line=dict(width=2, color='orange'),
-                name=f'Booster {j + 1} Burn'
-            ))
+                line=dict(width=4, color=colors[i]),
+                name=f'Stage {i + 1} Ballistic flight'
+                ))
+                fig.add_trace(go.Scatter3d(
+                    x=xout_b_stages[i],
+                    y=yout_b_stages[i],
+                    z=zout_b_stages[i],
+                    mode='lines',
+                    line=dict(width=2, color=colors[i+stages_count]),
+                    name=f'Stage {i + 1} Propelled flight'
+                ))
+
+
+    if booster_visibility:
+        fig.add_trace(go.Scatter3d(
+            x=xout_boosters,
+            y=yout_boosters,
+            z=zout_boosters,
+            mode='lines',
+            line=dict(width=4, color=colors[-2]),
+            name=f'Boosters Ballistic flight'
+        ))
+        fig.add_trace(go.Scatter3d(
+            x=xout_b_boosters,
+            y=yout_b_boosters,
+            z=zout_b_boosters,
+            mode='lines',
+            line=dict(width=2, color=colors[-1]),
+            name=f'Boosters Propelled flight'
+        ))
 
     # Launch point
     fig.add_trace(go.Scatter3d(
-        x=[xout_stages[0][0]],
-        y=[yout_stages[0][0]],
-        z=[zout_stages[0][0]],
+        x=[xout_b_stages[0][0]],
+        y=[yout_b_stages[0][0]],
+        z=[zout_b_stages[0][0]],
         mode='markers',
         marker=dict(size=5, color='yellow'),
         name='Launch'
@@ -1221,15 +1287,17 @@ def plot_3d_orbit(data, stages_count, booster_count):
 
 
 
-def plot_velocity_vs_time(tout_stages, velmag_stages, stages_count):
+def plot_velocity_vs_time(tout_stages, velmag_stages, stages_count, tout_boosters, velmag_boosters):
     """Function to plot velocity vs time"""
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
         stage_visibility.append(checked)
+    booster_visibility = st.checkbox("Boosters", value=True)
 
-
+        
     fig = go.Figure()
+
     for i in range(stages_count):
         if stage_visibility[i]:
             fig.add_trace(go.Scatter(
@@ -1239,19 +1307,33 @@ def plot_velocity_vs_time(tout_stages, velmag_stages, stages_count):
                 line=dict(color=colors[i % len(colors)]),
                 name=f'Stage {i + 1}'
             ))
+    if booster_visibility:
+        fig.add_trace(go.Scatter(
+            x=tout_boosters,
+            y=velmag_boosters,
+            mode='lines',
+            line=dict(color=colors[stages_count % len(colors)]),
+            name=f'Boosters'
+            ))
+    fig.update_layout(
+        xaxis=dict(
+            title="Time (s)"
+        ),
+        yaxis=dict(
+            title="Velocity (m/s)"
+        ),
+        title="Velocity vs Time"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, alt_boosters, booster_count):
+def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, alt_boosters):
     """Function to plot altitude vs time"""
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_alt_{i}")
         stage_visibility.append(checked)
 
-    booster_visibility = []
-    for j in range(booster_count):
-        checked = st.checkbox(f"Booster {j + 1}", value=True, key=f"booster_alt_{j}")
-        booster_visibility.append(checked)
+    booster_visibility = st.checkbox("Boosters", value=True)
 
     fig = go.Figure()
     for i in range(stages_count):
@@ -1263,14 +1345,13 @@ def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, 
                 line=dict(color=colors[i % len(colors)]),
                 name=f'Stage {i + 1}'
             ))
-    for j in range(booster_count):
-        if booster_visibility[j]:
-            fig.add_trace(go.Scatter(
-                x=tout_boosters[j],
-                y=alt_boosters[j],
-                mode='lines',
-                line=dict(color=colors[j+stages_count % len(colors)]),
-                name=f'Booster {j + 1}'
+    if booster_visibility:
+        fig.add_trace(go.Scatter(
+            x=tout_boosters,
+            y=alt_boosters,
+            mode='lines',
+            line=dict(color=colors[stages_count % len(colors)]),
+            name=f'Boosters'
             ))
     fig.update_layout(
         xaxis=dict(
@@ -1283,17 +1364,13 @@ def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, 
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def plot_mass_vs_time(tout_stages, massout_stages, stages_count, tout_boosters, massout_boosters, booster_count):
+def plot_mass_vs_time(tout_stages, massout_stages, stages_count):
     """Function to plot mass vs time"""
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_mass_{i}")
         stage_visibility.append(checked)
 
-    booster_visibility = []
-    for j in range(booster_count):
-        checked = st.checkbox(f"Booster {j + 1}", value=True, key=f"booster_mass_{j}")
-        booster_visibility.append(checked)
 
     fig = go.Figure()
     for i in range(stages_count):
@@ -1305,15 +1382,7 @@ def plot_mass_vs_time(tout_stages, massout_stages, stages_count, tout_boosters, 
                 line=dict(color=colors[i % len(colors)]),
                 name=f'Stage {i + 1}'
             ))
-    for j in range(booster_count):
-        if booster_visibility[j]:
-            fig.add_trace(go.Scatter(
-                x=tout_boosters[j],
-                y=massout_boosters[j],
-                mode='lines',
-                line=dict(color=colors[j+stages_count % len(colors)]),
-                name=f'Booster {j + 1}'
-            ))
+    
     fig.update_layout(
         xaxis=dict(
             title="Time (s)"
@@ -1324,10 +1393,6 @@ def plot_mass_vs_time(tout_stages, massout_stages, stages_count, tout_boosters, 
         title="Mass vs Time"
     )
     st.plotly_chart(fig, use_container_width=True)
-
-def plot_density_vs_altitude(data):
-    """Function to plot density vs altitude"""
-    pass # placeholder for density vs altitude plotting code
 
 def plot_temperature_profile():
     """Function to plot temperature profile"""

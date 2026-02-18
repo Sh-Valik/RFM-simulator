@@ -217,7 +217,7 @@ def run_simulation(data):
 
     if has_boosters:
         for i in range(booster_count):
-            stateinitial_boosters[i] = np.array([x0, y0, z0, velx0, vely0, velz0, m0_each_boosters[i]])
+            stateinitial_boosters[i] = np.array([x0, y0, z0, velx0, vely0, velz0,  m0[0]])
 
             tout_boosters[i], stateout_boosters[i], tout_b_boosters[i], stateout_b_boosters[i] = integration_boosters(stateinitial_boosters[i], tout_boosters[i], stages_info, boosters_info, t_burn_boosters, T_mag_boosters[i], mass_flow_boosters[i], m_construction_each_boosters[i], boosters_area_pf[i], boosters_area_bf[i], Cd_of_crosflow_cylinder, t_vertical_flight, Azimuth, theta_angle_deg=theta_angle_deg)
             
@@ -228,14 +228,9 @@ def run_simulation(data):
 
             xout_b_boosters[i], yout_b_boosters[i], zout_b_boosters[i], velxout_b_boosters[i], velyout_b_boosters[i], velzout_b_boosters[i], _ = extract_results(stateout_b_boosters[i])
 
-    stages_return = [tout_stages, massout_stages, xout_stages, yout_stages, zout_stages]
-    boosters_return = [tout_boosters, massout_boosters, xout_boosters, yout_boosters, zout_boosters]
 
-
-
-
-
-
+    
+    
     # Convert final state to orbital elements
     orbitl_state = stateout_b_stages[-1][-1]  # State at end of propelled flight (after circularization)
 
@@ -258,19 +253,21 @@ def run_simulation(data):
         altitude_stages[i] = altitude_stages[i][:cut_idx_stages[i]] / 1000 # convert to km
         massout_stages[i] = massout_stages[i][:cut_idx_stages[i]]
     
-    cut_idx_boosters = [None] * booster_count
-    for i in range(booster_count):
-        cut_idx_boosters[i] = cut_until_hit(xout_boosters[i], yout_boosters[i], zout_boosters[i])
-        xout_boosters[i] = xout_boosters[i][:cut_idx_boosters[i]]
-        yout_boosters[i] = yout_boosters[i][:cut_idx_boosters[i]]
-        zout_boosters[i] = zout_boosters[i][:cut_idx_boosters[i]]
-        velmag_boosters[i] = velmag_boosters[i][:cut_idx_boosters[i]]
-        tout_boosters[i] = tout_boosters[i][:cut_idx_boosters[i]]
-        altitude_boosters[i] = altitude_boosters[i][:cut_idx_boosters[i]] / 1000 # convert to km
-        massout_boosters[i] = massout_boosters[i][:cut_idx_boosters[i]]
+
+    cut_idx_boosters = cut_until_hit(xout_boosters[0], yout_boosters[0], zout_boosters[0])
+
+    xout_boosters[0] = xout_boosters[0][:cut_idx_boosters]
+    yout_boosters[0] = yout_boosters[0][:cut_idx_boosters]
+    zout_boosters[0] = zout_boosters[0][:cut_idx_boosters]
+    velmag_boosters[0] = velmag_boosters[0][:cut_idx_boosters]
+    tout_boosters[0] = tout_boosters[0][:cut_idx_boosters]
+    # print(len(altitude_boosters[0]))
+    altitude_boosters[0] = altitude_boosters[0][:cut_idx_boosters] / 1000 # convert to km
+    # print(len(altitude_boosters[0]))
+    massout_boosters[0] = massout_boosters[0][:cut_idx_boosters]
     
     stages_trajectories = [xout_stages, yout_stages, zout_stages, xout_b_stages, yout_b_stages, zout_b_stages]
-    boosters_trajectories = [xout_boosters, yout_boosters, zout_boosters, xout_b_boosters, yout_b_boosters, zout_b_boosters]
+    boosters_trajectories = [xout_boosters[0], yout_boosters[0], zout_boosters[0], xout_b_boosters[0], yout_b_boosters[0], zout_b_boosters[0]]
     
     trajectoiries = [stages_trajectories, boosters_trajectories]
     
@@ -299,13 +296,13 @@ def run_simulation(data):
         "stages_count": stages_count,
         "booster_count": booster_count,
         "velmag_stages": velmag_stages,
-        "velmag_boosters": velmag_boosters,
+        "velmag_boosters": velmag_boosters[0],
         "tout_stages": tout_stages,
-        "tout_boosters": tout_boosters,
+        "tout_boosters": tout_boosters[0],
         "altitude_stages": altitude_stages,
-        "altitude_boosters": altitude_boosters,
+        "altitude_boosters": altitude_boosters[0],
         "massout_stages": massout_stages,
-        "massout_boosters": massout_boosters,
+        "massout_boosters": massout_boosters[0],
         "orbital_elements": orbital_elements,
         "rocket_parameters": rocket_parameters
     }

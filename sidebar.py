@@ -17,6 +17,6 @@ def sidebar(page_type):
         st.sidebar.subheader("Results options")
         plot_option = st.sidebar.radio(
                 "Choose a option:",
-                ["Parameters", "3D Orbit", "Velocity vs Time", "Altitude vs Time", "Mass vs Time", "Density vs Altitude", "Temperature profile", "Drag coefficient vs Mach"] 
+                ["Parameters", "3D Orbit", "Velocity vs Time", "Altitude vs Time", "Mass vs Time", "Temperature profile", "Drag coefficient vs Mach"] 
             )
         return plot_option
