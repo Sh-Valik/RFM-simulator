@@ -1,12 +1,17 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import brentq
-from scipy.integrate import solve_ivp, odeint
+from scipy.integrate import odeint
 import os
 import streamlit as st
 import plotly.express as px
 import pandas as pd
 import plotly.graph_objects as go
+from PIL import Image
+
+############################################################################
+# ================ CONSTANTS AND DATA LOADING =============================#
+############################################################################
 
 G = 6.6742 * 10**-11  # gravitational constant [N.m^2/kg^2]
 g0 = 9.80665  # standard gravitational acceleration [m/s^2]
@@ -48,6 +53,9 @@ new_Cd = drag_interp(new_Mach)
 cd_data = pd.DataFrame({'Mach': new_Mach, 'Cd': new_Cd})
 ############################################################################
 
+############################################################################
+# =========== FUNCTIONS FOR ATMOSPHERE MODELING ===========================#
+############################################################################
 
 ############################################################################
 def temperature_by_altitude(x, y, z):
@@ -97,11 +105,14 @@ def q_dynamic_pressure(rho, V):
     return q
 ############################################################################
 
-
 ############################################################################
-def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg):
+# ================ FLIGHT PROFILE (PROPULSION IDEA) =======================#
+############################################################################
+# q_stages = [None] * 2
+############################################################################
+def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg):
     """ Computes the state derivatives for stages onhly"""
-    kick_angle = np.deg2rad(kick_angle_deg)
+    theta_angle = np.deg2rad(theta_angle_deg)
     # Unpack stages_info
     T_mag_stages = stages_info[1]
     mass_flow_stages = stages_info[2]
@@ -138,6 +149,7 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
     v_vec = np.array([velx, vely, velz])
     v_radial = np.dot(r_vec, v_vec) / np.linalg.norm(r_vec)
     apogee_reached = v_radial < 0
+    
 
     if apogee_reached:
         Area = Area_bf
@@ -186,8 +198,8 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
 
             if altitude < 80000.0:
                 # Below atmosphere: fixed pitch at kick angle from local vertical
-                thrust_dir = (np.cos(kick_angle) * r_hat +
-                              np.sin(kick_angle) * (
+                thrust_dir = (np.cos(theta_angle) * r_hat +
+                              np.sin(theta_angle) * (
                                   np.sin(Az_rad) * east_hat +
                                   np.cos(Az_rad) * north_hat))
             else:
@@ -218,9 +230,9 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
 
 
 ############################################################################
-def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg):
+def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg):
     """ Computes the state derivatives for stages onhly"""
-    kick_angle = np.deg2rad(kick_angle_deg)
+    theta_angle = np.deg2rad(theta_angle_deg)
     # Unpack stages_info
     t_burn_stages = stages_info[0]
     T_mag_stages = stages_info[1]
@@ -262,6 +274,7 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
     v_vec = np.array([velx, vely, velz])
     v_radial = np.dot(r_vec, v_vec) / np.linalg.norm(r_vec)
     apogee_reached = v_radial < 0
+    
 
     if apogee_reached:
         Area = Area_bf
@@ -313,8 +326,8 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
             north_hat = np.cross(r_hat, east_hat)
 
             if altitude < 95000.0:
-                thrust_dir = (np.cos(kick_angle) * r_hat +
-                              np.sin(kick_angle) * (
+                thrust_dir = (np.cos(theta_angle) * r_hat +
+                              np.sin(theta_angle) * (
                                   np.sin(Az_rad) * east_hat +
                                   np.cos(Az_rad) * north_hat))
             else:
@@ -375,6 +388,7 @@ def Derivatives_balistic(state, t, Area_pf, Area_bf, Cd_of_crosflow_cylinder):
     v_radial = np.dot(r_vec, v_vec) / np.linalg.norm(r_vec)
     apogee_reached = v_radial < 0
 
+
     if apogee_reached:
         Area = Area_bf
         Cd = Cd_of_crosflow_cylinder
@@ -428,12 +442,15 @@ def extract_results(stateout):
     return x, y, z, velx, vely, velz, mass
 ############################################################################
 
+############################################################################
+# ===================== INTEGRATION OF STAGES =============================#
+############################################################################
 
 ############################################################################
-def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg, stages_count, rocket_has_boosters):
+def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg, stages_count, rocket_has_boosters):
     t_burn_stages = stages_info[0]
     t_burn_boosters = boosters_info[0]
-    simulation_time = 200000
+    simulation_time = 60000
     m_construction_each_boosters = boosters_info[3]
 
     if stage_index == 0 and rocket_has_boosters:
@@ -441,11 +458,11 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         time_1st_stage_without_boosters = np.linspace(t_burn_boosters, t_burn_stages[stage_index], 10000)
         tout_propelled = np.concatenate((time_with_boosters, time_1st_stage_without_boosters))
 
-        stateout_with_boosters = odeint(Derivatives_with_boosters, stateinitial, time_with_boosters, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg,))
+        stateout_with_boosters = odeint(Derivatives_with_boosters, stateinitial, time_with_boosters, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg,))
         state_initial_without_boosters = stateout_with_boosters[-1].copy()
         mass_after_booster_separation = state_initial_without_boosters[6] - sum(m_construction_each_boosters)
         state_initial_without_boosters[6] = mass_after_booster_separation
-        stateout_without_boosters = odeint(Derivatives_propelled, state_initial_without_boosters, time_1st_stage_without_boosters, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg,))
+        stateout_without_boosters = odeint(Derivatives_propelled, state_initial_without_boosters, time_1st_stage_without_boosters, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg,))
         stateout_propelled = np.concatenate((stateout_with_boosters, stateout_without_boosters))
 
         time_1st_stage_balistic = np.linspace(t_burn_stages[stage_index], simulation_time, 10000)
@@ -461,7 +478,7 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         time_stage_balistic = np.linspace(t_burn_stages[stage_index], simulation_time, 10000)
         tout = np.concatenate((tout_propelled, time_stage_balistic))
 
-        stateout_propelled = odeint(Derivatives_propelled, stateinitial, tout_propelled, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg,))
+        stateout_propelled = odeint(Derivatives_propelled, stateinitial, tout_propelled, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg,))
         state_initial_stage_balistic = stateout_propelled[-1].copy()
         
         stateout_balistic = odeint(Derivatives_balistic, state_initial_stage_balistic, time_stage_balistic, args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
@@ -495,7 +512,7 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         stateout_ascent = odeint(Derivatives_propelled, stateinitial, tout_ascent,
                                  args=(stages_info, boosters_info, Area_pf, Area_bf,
                                        Cd_of_crosflow_cylinder, t_vertical, Az_rad,
-                                       stage_index, kick_angle_deg,))
+                                       stage_index, theta_angle_deg,))
         
         # Restore original construction mass for circularization
         m_construction_stages[stage_index] = original_m_construction
@@ -542,7 +559,7 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         stateout_circ = odeint(Derivatives_propelled, state_at_apogee, tout_circ,
                                args=(stages_info, boosters_info, Area_pf, Area_bf,
                                      Cd_of_crosflow_cylinder, t_vertical, Az_rad,
-                                     stage_index, kick_angle_deg,))
+                                     stage_index, theta_angle_deg,))
         
         # --- Phase 4: Coast after circularization ---
         state_after_circ = stateout_circ[-1].copy()
@@ -564,7 +581,7 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
         time_stage_balistic = np.linspace(t_end, simulation_time, 10000)
         tout = np.concatenate((tout_propelled, time_stage_balistic))
 
-        stateout_propelled = odeint(Derivatives_propelled, stateinitial, tout_propelled, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, kick_angle_deg,))
+        stateout_propelled = odeint(Derivatives_propelled, stateinitial, tout_propelled, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, stage_index, theta_angle_deg,))
         state_initial_balistic = stateout_propelled[-1].copy()
         
         stateout_balistic = odeint(Derivatives_balistic, state_initial_balistic, time_stage_balistic, args=(Area_pf, Area_bf, Cd_of_crosflow_cylinder,))
@@ -576,12 +593,15 @@ def integration_stages(stateinitial, tout, stages_info, boosters_info, Area_pf, 
     return tout, stateout, tout_propelled, stateout_propelled
 ##############################################################################
 
+############################################################################
+# =================== INTEGRATION OF BOOSTERS =============================#
+############################################################################
 
 ############################################################################
-def integration_boosters(stateinitial, tout, stages_info, boosters_info, t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, kick_angle_deg):
+def integration_boosters(stateinitial, tout, stages_info, boosters_info, t_burn_boosters, T_mag_boosters, mass_flow_boosters, m_construction_each_boosters, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, theta_angle_deg):
     simulation_time = 3000
     tout_burn = np.linspace(0, t_burn_boosters, 10000)
-    stateout_burn = odeint(Derivatives_with_boosters, stateinitial, tout_burn, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, 0, kick_angle_deg,))
+    stateout_burn = odeint(Derivatives_with_boosters, stateinitial, tout_burn, args=(stages_info, boosters_info, Area_pf, Area_bf, Cd_of_crosflow_cylinder, t_vertical, Az_rad, 0, theta_angle_deg,))
 
     time_boosters_balistic = np.linspace(t_burn_boosters, simulation_time, 10000)
     state_initial_boosters_balistic = stateout_burn[-1].copy()
@@ -595,10 +615,10 @@ def integration_boosters(stateinitial, tout, stages_info, boosters_info, t_burn_
     return tout, stateout, tout_burn, stateout_burn
 ############################################################################
 
-##############################################################################
-##############################################################################
-##############################################################################
-##############################################################################
+############################################################################
+# ======================= AUXILIARY FUNCTIONS =============================#
+############################################################################
+
 ##############################################################################
 def compute_corrected_Azimuth(launch_lat, t_o_i, t_o_a):
     t_o_a = t_o_a * 1000  # km -> m
@@ -846,6 +866,9 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
         Vf_id_with_boosters = [Ve_stages[i] * np.log(Lambda_with_boosters[i]) for i in range(stage_count - 1)]
 
         Vf_id_first_stage_with_boosters = sum(Vf_id_stages) - sum(Vf_id_with_boosters)
+        Vf_id_rocket_with_boosters = []
+        Vf_id_rocket_with_boosters.append(Vf_id_first_stage_with_boosters)
+        Vf_id_rocket_with_boosters.extend(Vf_id_with_boosters)
 
         phi_first_stage_with_boosters = m_prop_stages[0] / (m0_stages[0] + delta_m_payload)
 
@@ -869,7 +892,7 @@ def parameters_of_boosters(input_mode, data_list, m_payload_without_boosters, m_
 
         new_m0_stages[0] = m0_stages[0] + delta_m_payload + sum(m0_each_boosters)
 
-        return Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
+        return Vf_id_rocket_with_boosters, Ve_boosters, mass_flow_boosters, diameter_boosters, height_boosters, m0_each_boosters, m_construction_each_boosters, m_prop_each_boosters, new_m0_stages
 ############################################################################
 
 
@@ -968,56 +991,339 @@ def calculate_optimal_mu(lambda_total, eps_list, Ve_list):
 
 
 ############################################################################
-############################################################################
-############################################################################
-# Functions for Result Page
-def test_plot(stages_count, velmag_stages, tout_stages):
-    st.markdown("### Select stages")
+def cut_until_hit(x, y, z):
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    r = np.sqrt(x**2  + y**2 + z**2)
+    idx = np.where(r < Rplanet)[0]
+    if len(idx) == 0:
+        return len(x)  # No hit, return full length
+    cut_idx = idx[0]
 
+    return cut_idx
+############################################################################
+
+
+############################################################################
+# ========================== RESULTS PLOTTING =============================#
+############################################################################
+
+def print_output_parameters(rocket_parameters, orbit_parameters, ):
+    # st.write()
+    # col1, col2, col3 = st.columns(3)
+    # with col1:
+    #     st.metric(label="", value=f"", border=True)
+    # with col2:
+    #     st.metric(label="", value=f"", border=True)
+    # with col3:
+    #     st.metric(label="", value=f"", border=True)
+    stages_parameters = rocket_parameters['stages_parameters']
+    boosters_parameters = rocket_parameters['boosters_parameters']
+    st.write("### Rocket Parameters")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        
+        st.write('#### 1st Stage')
+        st.metric(label="Construction Mass (kg)", value=f"{round(stages_parameters['m_construction_stages'][0], 2)} kg", border=True)
+        st.metric(label="Propellant Mass (kg)", value=f"{round(stages_parameters['m_prop_stages'][0], 2)} kg", border=True)
+        st.metric(label="Start Mass (kg)", value=f"{round(stages_parameters['m0'][0], 2)} kg", delta="Falcon Heavy: 1420000 kg", border=True, help="Start mass of section (whole rocket) includes the mass of the stage itself, the propellant, and the payload. In this case, it also includes the mass of the boosters since they are attached at launch.")
+        st.metric(label="Burn time (s)", value=f"{round(stages_parameters['t_burn_stages'][0], 2)} s", border=True)
+        st.metric(label="Thrust (N)", value=f"{round(stages_parameters['T_mag_stages'][0], 2)} N", border=True)
+        st.metric(label="$\Delta V$", value=f"{round(stages_parameters['Vf_id_rocket_with_boosters'][0], 2)} m/s", border=True, help="The $\Delta V$ of the first stage with boosters.")
+    with col2:
+        st.write('#### 2nd Stage')
+        st.metric(label="Construction Mass (kg)", value=f"{round(stages_parameters['m_construction_stages'][1], 2)} kg", border=True)
+        st.metric(label="Propellant Mass (kg)", value=f"{round(stages_parameters['m_prop_stages'][1], 2)} kg", border=True)
+        st.metric(label="Start Mass (kg)", value=f"{round(stages_parameters['m0'][1], 2)} kg", border=True, help="Start mass of section includes the mass of the stage itself, the propellant, and the payload.")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(label="Burn time before Coasting (s)", value=f"{round((stages_parameters['t_burn_stages'][1])*(1-0.06534), 2)} s", border=True)
+        with col2:
+            st.metric(label="Burn time after Coasting (s)", value=f"{round((stages_parameters['t_burn_stages'][1])*(0.06534), 2)} s", border=True)
+        st.metric(label="Thrust (N)", value=f"{round(stages_parameters['T_mag_stages'][1], 2)} N", border=True)
+        st.metric(label="$\Delta V$", value=f"{round(stages_parameters['Vf_id_rocket_with_boosters'][1], 2)} m/s", border=True)
+    with col3:
+        st.write('#### Boosters')
+        st.metric(label="Construction Mass (kg)", value=f"{round(boosters_parameters['m_construction_each_boosters'][0], 2)} kg", border=True)
+        st.metric(label="Propellant Mass (kg)", value=f"{round(boosters_parameters['m_prop_each_boosters'][0], 2)} kg", border=True)
+        st.metric(label="Start Mass (kg)", value=f"{round(boosters_parameters['m_construction_each_boosters'][0] + boosters_parameters['m_prop_each_boosters'][0], 2)} kg", border=True, help="Start mass of each booster includes the mass of the booster itself and its propellant.")
+        st.metric(label="Burn time (s)", value=f"{round(boosters_parameters['t_burn_boosters'], 2)} s", border=True)
+        st.metric(label="Thrust of Each Booster (N)", value=f"{round(boosters_parameters['T_mag_boosters'][0], 2)} N", border=True)
+    
+    st.write('#### Total Parameters')
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(label="Total $\Delta V$", value=f"{round(sum(stages_parameters['Vf_id_rocket_with_boosters']), 2)} m/s", border=True, help="The total $\Delta V$ of the rocket with boosters.")
+    with col2:
+        st.metric(label="Total Thrust at Launch (N)", value=f"{round(stages_parameters['T_mag_stages'][0] + sum(boosters_parameters['T_mag_boosters']), 2) / 1000000} MN", delta="Falcon Heavy: 22.82 N", border=True)
+    
+
+    st.write("### Achieved Orbit Parameters")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(label="Achived SMA (km)", value=f"{round(orbit_parameters['a'], 2)} km", delta=f"Target: {26571.0} km", border=True)
+        st.metric(label="Achived RAAN (deg)", value=f"{round(orbit_parameters['RAAN'], 2)} deg", border=True)
+    with col2:
+        st.metric(label="Achived Eccentricity", value=f"{round(orbit_parameters['e'], 2)}", delta=f"Target: {0.0}", delta_color="inverse", delta_arrow="down", border=True)
+        st.metric(label="Achived Angle of Perigee", value=f"{round(orbit_parameters['omega'], 2)} deg", border=True)
+    with col3:
+        st.metric(label="Achived Inclination (deg)", value=f"{round(orbit_parameters['i'], 2)} deg", delta=f"Target: {55.0} deg", delta_color="inverse", delta_arrow="down", border=True)
+
+    
+
+
+colors = ['blue', 'red', 'green', 'orange', 'purple', 'cyan', 'magenta', 'yellow']
+
+def plot_Earth():
+    R = 6371000  # Earth radius
+
+    # ===== 1. Create sphere mesh =====
+    u = np.linspace(-np.pi, np.pi, 200)
+    v = np.linspace(0, np.pi, 100)
+
+    x_sphere = R * np.outer(np.cos(u), np.sin(v))
+    y_sphere = R * np.outer(np.sin(u), np.sin(v))
+    z_sphere = R * np.outer(np.ones(np.size(u)), np.cos(v))
+
+    # ===== 2. Load texture =====
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    texture_path = os.path.join(project_root, "resources", "earth_texture.jpg")
+
+    img = Image.open(texture_path)
+    img = img.resize((200, 100))
+    texture = np.array(img)
+
+    # Convert to grayscale for surfacecolor
+    texture_gray = np.mean(texture, axis=2)
+
+    # ===== 3. Apply GMST rotation (if provided) =====
+    gmst = 0.0
+
+    cos_g = np.cos(gmst)
+    sin_g = np.sin(gmst)
+
+    x_rot = x_sphere * cos_g - y_sphere * sin_g
+    y_rot = x_sphere * sin_g + y_sphere * cos_g
+    z_rot = z_sphere
+    
+    return x_rot, y_rot, z_rot, texture_gray
+############################################################################
+def plot_3d_orbit(data, stages_count, booster_count):
+    """
+    data = trajectories of all stages and boosters if applicable, in the form of:
+
+    """
+
+    stages_trajectories = data[0]
+    boosters_trajectories = data[1]
+
+
+    xout_stages = stages_trajectories[0]
+    yout_stages = stages_trajectories[1]
+    zout_stages = stages_trajectories[2]
+    xout_b_stages = stages_trajectories[3]
+    yout_b_stages = stages_trajectories[4]
+    zout_b_stages = stages_trajectories[5]
+
+    xout_boosters = boosters_trajectories[0]
+    yout_boosters = boosters_trajectories[1]
+    zout_boosters = boosters_trajectories[2]
+    xout_b_boosters = boosters_trajectories[3]
+    yout_b_boosters = boosters_trajectories[4]
+    zout_b_boosters = boosters_trajectories[5]
+
+    stage_visibility = []
+    booster_visibility = []
+    for i in range(stages_count):
+        checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
+        stage_visibility.append(checked)
+    for j in range(booster_count):
+        checked = st.checkbox(f"Booster {j + 1}", value=True, key=f"booster_{j}")
+        booster_visibility.append(checked)
+    
+
+    # ===== 4. Build figure =====
+    fig = go.Figure()
+    
+    x_rot, y_rot, z_rot, texture_gray = plot_Earth()
+    # Earth
+    fig.add_trace(go.Surface(
+        x=x_rot,
+        y=y_rot,
+        z=z_rot,
+        surfacecolor=texture_gray.T,
+        colorscale="gray",
+        showscale=False
+    ))
+
+    # Orbit trajectory
+    for i in range(stages_count):
+        if stage_visibility[i]:
+            fig.add_trace(go.Scatter3d(
+                x=xout_stages[i],
+                y=yout_stages[i],
+                z=zout_stages[i],
+                mode='lines',
+                line=dict(width=4, color='blue'),
+                name=f'Stage {i + 1} Trajectory'
+            ))
+            fig.add_trace(go.Scatter3d(
+                x=xout_b_stages[i],
+                y=yout_b_stages[i],
+                z=zout_b_stages[i],
+                mode='lines',
+                line=dict(width=2, color='red'),
+                name=f'Stage {i + 1} Burn'
+            ))
+    for j in range(booster_count):
+        if booster_visibility[j]:
+            fig.add_trace(go.Scatter3d(
+                x=xout_boosters[j],
+                y=yout_boosters[j],
+                z=zout_boosters[j],
+                mode='lines',
+                line=dict(width=4, color='green'),
+                name=f'Booster {j + 1} Trajectory'
+            ))
+            fig.add_trace(go.Scatter3d(
+                x=xout_b_boosters[j],
+                y=yout_b_boosters[j],
+                z=zout_b_boosters[j],
+                mode='lines',
+                line=dict(width=2, color='orange'),
+                name=f'Booster {j + 1} Burn'
+            ))
+
+    # Launch point
+    fig.add_trace(go.Scatter3d(
+        x=[xout_stages[0][0]],
+        y=[yout_stages[0][0]],
+        z=[zout_stages[0][0]],
+        mode='markers',
+        marker=dict(size=5, color='yellow'),
+        name='Launch'
+    ))
+
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(visible=False),
+            aspectmode='data'
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=800
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+def plot_velocity_vs_time(tout_stages, velmag_stages, stages_count):
+    """Function to plot velocity vs time"""
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
         stage_visibility.append(checked)
 
-    # ---------- Plot ----------
-    fig = go.Figure()
 
+    fig = go.Figure()
     for i in range(stages_count):
         if stage_visibility[i]:
-            fig.add_trace(
-                go.Scatter(
-                    x=tout_stages[i],
-                    y=velmag_stages[i],
-                    mode="lines",
-                    name=f"Stage {i + 1}"
-                )
-            )
-
-    fig.update_layout(
-        xaxis_title="Time (s)",
-        yaxis_title="Velocity magnitude (m/s)",
-        legend_title="Stages",
-        template="plotly_white",
-        height=600
-    )
-
+            fig.add_trace(go.Scatter(
+                x=tout_stages[i],
+                y=velmag_stages[i],
+                mode='lines',
+                line=dict(color=colors[i % len(colors)]),
+                name=f'Stage {i + 1}'
+            ))
     st.plotly_chart(fig, use_container_width=True)
-def plot_3d_orbit(data):
-    """Function to plot 3D Orbit"""
-    pass
-    
 
-def plot_velocity_vs_time(data):
-    """Function to plot velocity vs time"""
-    pass # placeholder for velocity vs time plotting code
-
-def plot_altitude_vs_time(data):
+def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, alt_boosters, booster_count):
     """Function to plot altitude vs time"""
-    pass # placeholder for altitude vs time plotting code
+    stage_visibility = []
+    for i in range(stages_count):
+        checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_alt_{i}")
+        stage_visibility.append(checked)
 
-def plot_mass_vs_time(data):
+    booster_visibility = []
+    for j in range(booster_count):
+        checked = st.checkbox(f"Booster {j + 1}", value=True, key=f"booster_alt_{j}")
+        booster_visibility.append(checked)
+
+    fig = go.Figure()
+    for i in range(stages_count):
+        if stage_visibility[i]:
+            fig.add_trace(go.Scatter(
+                x=tout_stages[i],
+                y=alt_stages[i],
+                mode='lines',
+                line=dict(color=colors[i % len(colors)]),
+                name=f'Stage {i + 1}'
+            ))
+    for j in range(booster_count):
+        if booster_visibility[j]:
+            fig.add_trace(go.Scatter(
+                x=tout_boosters[j],
+                y=alt_boosters[j],
+                mode='lines',
+                line=dict(color=colors[j+stages_count % len(colors)]),
+                name=f'Booster {j + 1}'
+            ))
+    fig.update_layout(
+        xaxis=dict(
+            title="Time (s)"
+        ),
+        yaxis=dict(
+            title="Altitude (km)"
+        ),
+        title="Altitude vs Time"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_mass_vs_time(tout_stages, massout_stages, stages_count, tout_boosters, massout_boosters, booster_count):
     """Function to plot mass vs time"""
-    pass # placeholder for mass vs time plotting code
+    stage_visibility = []
+    for i in range(stages_count):
+        checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_mass_{i}")
+        stage_visibility.append(checked)
+
+    booster_visibility = []
+    for j in range(booster_count):
+        checked = st.checkbox(f"Booster {j + 1}", value=True, key=f"booster_mass_{j}")
+        booster_visibility.append(checked)
+
+    fig = go.Figure()
+    for i in range(stages_count):
+        if stage_visibility[i]:
+            fig.add_trace(go.Scatter(
+                x=tout_stages[i],
+                y=massout_stages[i],
+                mode='lines',
+                line=dict(color=colors[i % len(colors)]),
+                name=f'Stage {i + 1}'
+            ))
+    for j in range(booster_count):
+        if booster_visibility[j]:
+            fig.add_trace(go.Scatter(
+                x=tout_boosters[j],
+                y=massout_boosters[j],
+                mode='lines',
+                line=dict(color=colors[j+stages_count % len(colors)]),
+                name=f'Booster {j + 1}'
+            ))
+    fig.update_layout(
+        xaxis=dict(
+            title="Time (s)"
+        ),
+        yaxis=dict(
+            title="Mass (kg)"
+        ),
+        title="Mass vs Time"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 def plot_density_vs_altitude(data):
     """Function to plot density vs altitude"""

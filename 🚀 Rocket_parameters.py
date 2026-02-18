@@ -86,10 +86,9 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.number_input("Time of vertical flight (s)", min_value=0.0, value=data["t_vertical_flight"], step=1.0, key="t_vertical_flight", on_change=lambda: update_field("t_vertical_flight", st.session_state.t_vertical_flight), help="Time of vertical flight of the rocket.")
-    # st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Launch angle of the rocket relative to the horizontal plane.")
 
 with col2:
-    pass
+    st.number_input("Theta angle (degrees)", min_value=0.0, max_value=90.0, value=data["theta_angle"], step=1.0, key="theta_angle", on_change=lambda: update_field("theta_angle", st.session_state.theta_angle), help="Angle of the rocket after vertical flight relative to the horizontal plane.")
 st.divider()
 ######################
 st.header("Stages parameters")

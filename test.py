@@ -5,19 +5,17 @@ from scipy.optimize import minimize
 
 DEFAULT_DATA = {
     # Для автоподбора:
-    # t_vertical_flight, kick_angle_deg, fuel_reserve_fraction
+    # t_vertical_flight, theta_angle_deg, fuel_reserve_fraction
     # Можно варьировать вручную или через цикл
     "payload_mass_without_booster": 2880.0, # Stoil
     "payload_mass_with_booster": 3880.0, # Stoil
-    #"theta_angle": 80.0,
     "stages_count": 2, # Stoil
     "has_boosters": True,
     "booster_count": 2,
     "t_burn_ratio": 0.71,
     "payload_mass_ratio_total": 0.005,
-    # "t_vertical_flight": 37.6175,
     "t_vertical_flight": 64.994,
-    "kick_angle": 67.7,
+    "theta_angle": 67.7,
     "input_mode": "EPS & lambda",
     "rocket_type": "Optimal",
     "stages_data_mass": [
@@ -107,13 +105,13 @@ def objective_function(params, data, target_orbit):
     Оптимизатор вызывает её, меняя params, чтобы вернуть как можно меньшее число.
     """
     # 1. Распаковываем параметры, которые подбирает оптимизатор
-    t_vertical_guess, kick_angle_guess = params
+    t_vertical_guess, theta_angle_guess = params
 
     # 2. Обновляем входные данные для симуляции
     # Мы создаем копию, чтобы не ломать исходный словарь
     sim_data = data.copy()
     sim_data["t_vertical_flight"] = t_vertical_guess
-    sim_data["kick_angle"] = kick_angle_guess
+    sim_data["theta_angle"] = theta_angle_guess
 
     # 3. Запускаем симуляцию
     # Важно: run_simulation должна возвращать orbital_elements третьим аргументом!
@@ -168,14 +166,14 @@ def find_optimal_parameters(initial_data):
         'i': initial_data["orbit_i"]
     }
 
-    # Начальное предположение [t_vertical, kick_angle]
+    # Начальное предположение [t_vertical, theta_angle]
     # Берем то, что было в конфиге изначально
     x0 = [initial_data["t_vertical_flight"], 72.0] 
 
     # Границы поиска (Bounds):
     # t_vertical: от 1 сек до 30 сек (пример)
-    # kick_angle: от 0 град (вертикально) до 89.9 град (горизонтально)
-    # Примечание: kick_angle обычно отсчитывается от вертикали. 
+    # theta_angle: от 0 град (вертикально) до 89.9 град (горизонтально)
+    # Примечание: theta_angle обычно отсчитывается от вертикали. 
     # Если у вас 0 - это горизонт, поменяйте границы.
     bounds = [(1.0, 50.0), (45.0, 89.0)] 
 
@@ -198,21 +196,21 @@ def find_optimal_parameters(initial_data):
     else:
         print("Оптимизатор завершил работу (возможно, локальный минимум).")
 
-    best_t_vertical, best_kick_angle = result.x
+    best_t_vertical, best_theta_angle = result.x
     
     print(f"Оптимальное время вертикального полета: {best_t_vertical:.4f} с")
-    print(f"Оптимальный угол (Kick Angle): {best_kick_angle:.4f} град")
+    print(f"Оптимальный угол (Kick Angle): {best_theta_angle:.4f} град")
     print(f"Финальная ошибка (cost): {result.fun:.6f}")
 
     # Запускаем финальную симуляцию с лучшими параметрами, чтобы получить графики
     print("\nЗапуск контрольной симуляции...")
     initial_data["t_vertical_flight"] = best_t_vertical
-    initial_data["kick_angle"] = best_kick_angle
+    initial_data["theta_angle"] = best_theta_angle
     
     stages_res, boosters_res, elements = run_simulation(initial_data)
     
     print(f"Полученная орбита:\n SMA (a): {elements['a']:.2f} km\n ECC (e): {elements['e']:.4f}\n INC (i): {elements['i']:.2f} deg")
 
-    return best_t_vertical, best_kick_angle, elements
+    return best_t_vertical, best_theta_angle, elements
 
 # best_t, best_angle, final_orbit = find_optimal_parameters(DEFAULT_DATA)
