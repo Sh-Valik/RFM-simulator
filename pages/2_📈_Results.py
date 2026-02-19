@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from sidebar import sidebar
-from Algorithm.functions import print_output_parameters, plot_3d_orbit, plot_velocity_vs_time, plot_altitude_vs_time, plot_mass_vs_time, plot_temperature_profile, plot_drag_coefficient_vs_mach
+from Algorithm.functions import print_output_parameters, plot_3d_orbit, projection_test, plot_velocity_vs_time, plot_altitude_vs_time, plot_mass_vs_time, plot_temperature_profile, plot_drag_coefficient_vs_mach
 from data_manager import load_data
 from Algorithm.main import run_simulation
 ##############################################################
@@ -25,11 +25,14 @@ massout_boosters = simulation_results["massout_boosters"]
 orbital_elements = simulation_results["orbital_elements"]
 rocket_parameters = simulation_results["rocket_parameters"]
 
+
 ##############################################################
 if selected_option == "Parameters":
     print_output_parameters(rocket_parameters, orbital_elements)
 elif selected_option == "3D Orbit":
     plot_3d_orbit(trajectoiries, stages_count, booster_count)
+elif selected_option == "2D Projection":
+    projection_test(trajectoiries, stages_count)
 elif selected_option == "Velocity vs Time":
     st.header("Velocity vs Time")
     plot_velocity_vs_time(tout_stages, velmag_stages, stages_count, tout_boosters, velmag_boosters)

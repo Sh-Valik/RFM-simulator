@@ -1427,3 +1427,88 @@ def plot_drag_coefficient_vs_mach():
     st.plotly_chart(fig)
 ############################################################################
 ############################################################################
+
+
+def cartesian_to_geo(x, y, z):
+    a = 6378137.0 # Semi-major axec (equtorial radius)
+    f = 1 / 298.257223563 # Compresion
+    e2 = f * (2 - f) # Square of eccentrecity
+    lon = np.arctan2(y, x) # Calculate the longitude
+    # Iterative latitude calculation
+    r = np.sqrt(x**2 + y**2)
+    lat = np.arctan2(z, r * (1 - e2))
+    for _ in range(5): # 4-5 iterations are usually enough
+        N = a / np.sqrt(1 - e2 * np.sin(lat)**2)
+        h = r / np.cos(lat) - N
+        lat = np.arctan2(z, r * (1 - e2 * N / (N + h)))
+    N = a / np.sqrt(1 - e2 * np.sin(lat)**2)
+    h = r / np.cos(lat) - N
+    lat_deg = np.degrees(lat)
+    lon_deg = np.degrees(lon)
+    return lat_deg, lon_deg, h
+
+
+
+def projection_test(trajectories, stage_count):
+
+    stages_trajectories = trajectories[0]
+    boosters_trajectories = trajectories[1]
+
+
+    xout_stages = stages_trajectories[0]
+    yout_stages = stages_trajectories[1]
+    zout_stages = stages_trajectories[2]
+
+    xout_boosters = boosters_trajectories[0]
+    yout_boosters = boosters_trajectories[1]
+    zout_boosters = boosters_trajectories[2]
+
+
+    lat_stages = [None] * stage_count
+    long_stages = [None] * stage_count
+
+    for i in range(stage_count):
+        lat_stages[i], long_stages[i], _ = cartesian_to_geo(xout_stages[i], yout_stages[i], zout_stages[i])
+    lat_boosters, long_boosters, _ = cartesian_to_geo(xout_boosters, yout_boosters, zout_boosters)
+
+
+    st.markdown("**Toggle visibility of trajectory segments:**")
+    stage_visibility = []
+    for i in range(stage_count):
+        checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
+        stage_visibility.append(checked)
+    booster_visibility = st.checkbox("Boosters", value=True)
+
+
+    fig = go.Figure()
+    for i in range(stage_count):
+        if stage_visibility[i]:
+            fig.add_trace(go.Scattergeo(
+                lat=lat_stages[i],
+                lon=long_stages[i],
+                mode="lines",
+                line=dict(color=colors[i % len(colors)]),
+                name=f'Stage {i + 1}'
+            ))
+
+    if booster_visibility:
+        fig.add_trace(go.Scattergeo(
+            lat=lat_boosters,
+            lon=long_boosters,
+            mode="lines",
+            line=dict(color=colors[stage_count % len(colors)]),
+            name=f'Bossters'
+        ))
+
+
+    fig.update_layout(
+        geo=dict(
+            projection_type="equirectangular",  # "вид сверху"
+            showland=True,
+            landcolor="rgb(217, 217, 217)",
+            showocean=True,
+            oceancolor="rgb(204, 224, 255)",
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True, height=900)
