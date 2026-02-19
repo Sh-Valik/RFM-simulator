@@ -31,7 +31,7 @@ if selected_option == "Parameters":
 elif selected_option == "3D Orbit":
     plot_3d_orbit(trajectoiries, stages_count, booster_count)
 elif selected_option == "Velocity vs Time":
-    st.header("Velocity vs Time (m/s)")
+    st.header("Velocity vs Time")
     plot_velocity_vs_time(tout_stages, velmag_stages, stages_count, tout_boosters, velmag_boosters)
 elif selected_option == "Altitude vs Time":
     plot_altitude_vs_time(tout_stages, altititude_stages, stages_count, tout_boosters, altitude_boosters)

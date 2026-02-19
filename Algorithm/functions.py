@@ -198,8 +198,8 @@ def Derivatives_with_boosters(state, t, stages_info, boosters_info, Area_pf, Are
 
             if altitude < 80000.0:
                 # Below atmosphere: fixed pitch at kick angle from local vertical
-                thrust_dir = (np.cos(theta_angle) * r_hat +
-                              np.sin(theta_angle) * (
+                thrust_dir = (np.sin(theta_angle) * r_hat +
+                              np.cos(theta_angle) * (
                                   np.sin(Az_rad) * east_hat +
                                   np.cos(Az_rad) * north_hat))
             else:
@@ -326,8 +326,8 @@ def Derivatives_propelled(state, t, stages_info, boosters_info, Area_pf, Area_bf
             north_hat = np.cross(r_hat, east_hat)
 
             if altitude < 95000.0:
-                thrust_dir = (np.cos(theta_angle) * r_hat +
-                              np.sin(theta_angle) * (
+                thrust_dir = (np.sin(theta_angle) * r_hat +
+                              np.cos(theta_angle) * (
                                   np.sin(Az_rad) * east_hat +
                                   np.cos(Az_rad) * north_hat))
             else:
@@ -1052,11 +1052,13 @@ def print_output_parameters(rocket_parameters, orbit_parameters, ):
         st.metric(label="Thrust of Each Booster (N)", value=f"{round(boosters_parameters['T_mag_boosters'][0], 2)} N", border=True)
     
     st.write('#### Total Parameters')
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(label="Total $\Delta V$", value=f"{round(sum(stages_parameters['Vf_id_rocket_with_boosters']), 2)} m/s", border=True, help="The total $\Delta V$ of the rocket with boosters.")
     with col2:
-        st.metric(label="Total Thrust at Launch (N)", value=f"{round(stages_parameters['T_mag_stages'][0] + sum(boosters_parameters['T_mag_boosters']), 2) / 1000000} MN", delta="Falcon Heavy: 22.82 MN", border=True)
+        st.metric(label="Total Thrust at Launch (N)", value=f"{round(stages_parameters['T_mag_stages'][0] + sum(boosters_parameters['T_mag_boosters']), 2) / 1000000} MN", delta="Falcon Heavy: 22.82 MN", delta_color="inverse", delta_arrow="down", border=True)
+    with col3:
+        st.metric(label="$\Psi_0$ at Launch", value=f"{round(((stages_parameters['T_mag_stages'][0] + sum(boosters_parameters['T_mag_boosters'])) / (stages_parameters['m0'][0] * g0)), 3)}", delta="Falcon Heavy: 1.638", border=True)
     
 
     st.write("### Achieved Orbit Parameters")
@@ -1159,7 +1161,7 @@ def plot_3d_orbit(data, stages_count, booster_count):
     yout_boosters = yout_boosters[len(yout_b_boosters):]
     zout_boosters = zout_boosters[len(zout_b_boosters):]
     
-
+    st.markdown("**Toggle visibility of trajectory segments:**")
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
@@ -1271,12 +1273,17 @@ def plot_3d_orbit(data, stages_count, booster_count):
         marker=dict(size=5, color='yellow'),
         name='Launch'
     ))
-
+    camera = dict(
+        up=dict(x=0, y=0, z=1),
+        center=dict(x=0, y=0, z=0),
+        eye=dict(x=1.25, y=-1.25, z=0.0)
+    )
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
+            camera=camera,
             aspectmode='data'
         ),
         margin=dict(l=0, r=0, t=0, b=0),
@@ -1289,6 +1296,7 @@ def plot_3d_orbit(data, stages_count, booster_count):
 
 def plot_velocity_vs_time(tout_stages, velmag_stages, stages_count, tout_boosters, velmag_boosters):
     """Function to plot velocity vs time"""
+    st.subheader("Toggle visibility:")
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_{i}")
@@ -1326,8 +1334,10 @@ def plot_velocity_vs_time(tout_stages, velmag_stages, stages_count, tout_booster
     )
     st.plotly_chart(fig, use_container_width=True)
 
+
 def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, alt_boosters):
     """Function to plot altitude vs time"""
+    st.subheader("Toggle visibility:")
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_alt_{i}")
@@ -1366,6 +1376,7 @@ def plot_altitude_vs_time(tout_stages, alt_stages, stages_count, tout_boosters, 
 
 def plot_mass_vs_time(tout_stages, massout_stages, stages_count):
     """Function to plot mass vs time"""
+    st.subheader("Toggle visibility:")
     stage_visibility = []
     for i in range(stages_count):
         checked = st.checkbox(f"Stage {i + 1}", value=True, key=f"stage_mass_{i}")

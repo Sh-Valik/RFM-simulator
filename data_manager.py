@@ -21,7 +21,7 @@ DEFAULT_DATA = {
     "t_burn_ratio": 0.71,
     "payload_mass_ratio_total": 0.005,
     "t_vertical_flight": 64.994,
-    "theta_angle": 67.7,
+    "theta_angle": 22.3,
     "input_mode": "EPS & lambda",
     "rocket_type": "Optimal",
     "stages_data_mass": [
