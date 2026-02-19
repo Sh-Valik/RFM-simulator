@@ -29,7 +29,7 @@ rocket_parameters = simulation_results["rocket_parameters"]
 ##############################################################
 if selected_option == "Parameters":
     print_output_parameters(rocket_parameters, orbital_elements)
-elif selected_option == "3D Orbit":
+elif selected_option == "3D Trajectory":
     plot_3d_orbit(trajectoiries, stages_count, booster_count)
 elif selected_option == "2D Projection":
     projection_test(trajectoiries, stages_count)

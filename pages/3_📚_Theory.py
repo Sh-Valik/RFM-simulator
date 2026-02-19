@@ -534,6 +534,5 @@ Typical values for LEO launch: $\Delta V_{drag} \approx 100$ m/s, $\Delta V_{gra
 st.divider()
 
 st.caption("""
-All theory derived from: Stoil Ivanov, *Rocket Flight Mechanics*, Lecture Notes 1–11, Sofia, Bulgaria, 2025.
-Reference sources: Wittenburg (TU Delft, 2014), Miele (1962), Bate–Mueller–White (1971), US Standard Atmosphere (1976).
+All theory derived from: Stoil Ivanov, *Rocket Flight Mechanics*, Lecture Notes 1–11, Sofia, Bulgaria, 2025-2026.
 """)

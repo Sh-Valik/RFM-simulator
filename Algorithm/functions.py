@@ -1045,9 +1045,9 @@ def print_output_parameters(rocket_parameters, orbit_parameters, ):
         st.metric(label="$\Delta V$", value=f"{round(stages_parameters['Vf_id_rocket_with_boosters'][1], 2)} m/s", border=True)
     with col3:
         st.write('#### Boosters')
-        st.metric(label="Construction Mass (kg)", value=f"{round(boosters_parameters['m_construction_each_boosters'][0], 2)} kg", border=True)
-        st.metric(label="Propellant Mass (kg)", value=f"{round(boosters_parameters['m_prop_each_boosters'][0], 2)} kg", border=True)
-        st.metric(label="Start Mass (kg)", value=f"{round(boosters_parameters['m_construction_each_boosters'][0] + boosters_parameters['m_prop_each_boosters'][0], 2)} kg", border=True, help="Start mass of each booster includes the mass of the booster itself and its propellant.")
+        st.metric(label="Construction Mass of Each Booter (kg)", value=f"{round(boosters_parameters['m_construction_each_boosters'][0], 2)} kg", border=True)
+        st.metric(label="Propellant Mass  of Each Booter (kg)", value=f"{round(boosters_parameters['m_prop_each_boosters'][0], 2)} kg", border=True)
+        st.metric(label="Start Mass of Each Booter (kg)", value=f"{round(boosters_parameters['m_construction_each_boosters'][0] + boosters_parameters['m_prop_each_boosters'][0], 2)} kg", border=True, help="Start mass of each booster includes the mass of the booster itself and its propellant.")
         st.metric(label="Burn time (s)", value=f"{round(boosters_parameters['t_burn_boosters'], 2)} s", border=True)
         st.metric(label="Thrust of Each Booster (N)", value=f"{round(boosters_parameters['T_mag_boosters'][0], 2)} N", border=True)
     
